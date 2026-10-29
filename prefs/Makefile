@@ -1,4 +1,4 @@
-#include $(THEOS)/makefiles/common.mk
+include $(THEOS)/makefiles/common.mk
 
 BUNDLE_NAME = KeyboardGlassPrefs
 KeyboardGlassPrefs_FILES = RootListController.m KGThemePickerCell.m
