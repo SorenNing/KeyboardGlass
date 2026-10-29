@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+DIR=/var/jb/Library/KeyboardGlass/Themes
+mkdir -p "$DIR" 2>/dev/null || mkdir -p /Library/KeyboardGlass/Themes
+chmod 0755 /var/jb/Library/KeyboardGlass "$DIR" 2>/dev/null || true
+if [ ! -f "$DIR/README.txt" ]; then
+  cat > "$DIR/README.txt" <<'TXT'
+KeyboardGlass 键盘主题目录
+===========================================
+
+每个主题一个文件夹，例如：
+
+  Themes/MyTheme/
+    KeyboardMainBGPortrait-926h@3x.png      字母键盘（竖屏，iPhone 15 Pro Max）
+    KeyboardMainBGLandscape-926h@3x.png     字母键盘（横屏）
+    KeyboardNumbersBGPortrait-926h@3x.png   数字键盘
+    KeyboardEmojiBGPortrait-926h@3x.png     Emoji 键盘
+    KeyboardDictationBGPortrait-926h@3x.png 听写
+    KeyboardPredictionBarBGPortrait-926h@3x.png  预测栏
+    KeyboardEmojiSearchBarBGPortrait-926h@3x.png Emoji 搜索栏
+
+命名规则（照 Laetus / 系统键盘资源约定）：
+  <Keyplane 名>BG<Portrait|Landscape>[-屏高][@2x|@3x].png
+
+屏高后缀可选（926h = 15 Pro Max，896h = X/11 Pro，844h = 12/13/14，667h = 8）。
+无后缀 = 全机型通用；@3x 优先于 @2x 优先于无后缀。
+
+前景层（可选）：
+  <Keyplane 名>FG<Portrait|Landscape>.png
+
+然后到 设置 → KeyboardGlass → 当前主题 里选中该主题。
+TXT
+  chmod 0644 "$DIR/README.txt"
+fi
+exit 0
