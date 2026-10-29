@@ -50,6 +50,20 @@
                                          (__bridge CFStringRef)KG_CHANGED, NULL, NULL, true);
 }
 
+-(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    @try {
+        id specifier = self.specifiers[indexPath.row];
+        NSString *cellClass = [specifier propertyForKey:@"cellClass"];
+        if ([cellClass isEqualToString:@"KGThemePickerCell"]) {
+            UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
+            if ([cell isKindOfClass:NSClassFromString(@"KGThemePickerCell")]) {
+                [(id)cell performSelector:@selector(kgPickTheme)];
+            }
+        }
+    } @catch (__unused NSException *e) {}
+}
+
 #pragma mark - 主题目录按钮
 
 -(void)kgAlertWithTitle:(NSString *)title message:(NSString *)message copyPath:(NSString *)path {
@@ -108,12 +122,18 @@
         NSString *full = [KG_THEMES_DIR stringByAppendingPathComponent:item];
         BOOL isDir = NO;
         if ([[NSFileManager defaultManager] fileExistsAtPath:full isDirectory:&isDir] && isDir) {
-            [msg appendFormat:@"• %@\n", item];
+            NSArray *pngs = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:full error:NULL];
+            [msg appendFormat:@"• %@（%lu 个文件）\n", item, (unsigned long)pngs.count];
             any = YES;
         }
     }
-    if (!any) [msg appendString:@"（还没有主题，先建一个主题文件夹放入 PNG）"];
-    [self kgAlertWithTitle:@"当前主题列表" message:msg copyPath:nil];
+    if (!any) [msg appendString:@"（还没有主题，先建一个主题文件夹放入 PNG）\n\n"];
+    NSString *current = nil;
+    CFPreferencesAppSynchronize((__bridge CFStringRef)KG_DOMAIN);
+    CFPropertyListRef v = CFPreferencesCopyAppValue(CFSTR("ActiveTheme"), (__bridge CFStringRef)KG_DOMAIN);
+    current = v ? [(id)CFBridgingRelease(v) copy] : nil;
+    [msg appendFormat:@"\n当前选择：%@（空 = 自动用第一个主题）", current.length ? current : @"（空）"];
+    [self kgAlertWithTitle:@"当前主题列表" message:msg copyPath:KG_THEMES_DIR];
 }
 
 @end

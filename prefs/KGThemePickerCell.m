@@ -6,38 +6,71 @@
 
 @implementation KGThemePickerCell {
     UILabel *_valueLabel;
+    id _specifier;
 }
 
 - (instancetype)initWithStyle:(long)style reuseIdentifier:(NSString *)identifier specifier:(PSSpecifier *)specifier {
     if ((self = [super initWithStyle:style reuseIdentifier:identifier specifier:specifier])) {
         self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        self.selectionStyle = UITableViewCellSelectionStyleDefault;
+        _specifier = specifier;
+
         _valueLabel = [[UILabel alloc] init];
         _valueLabel.font = [UIFont systemFontOfSize:15];
         _valueLabel.textColor = UIColor.secondaryLabelColor;
         _valueLabel.textAlignment = NSTextAlignmentRight;
+        _valueLabel.translatesAutoresizingMaskIntoConstraints = NO;
         [self.contentView addSubview:_valueLabel];
-        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(kgPickTheme)];
-        [self.contentView addGestureRecognizer:tap];
+        [NSLayoutConstraint activateConstraints:@[
+            [_valueLabel.centerYAnchor constraintEqualToAnchor:self.contentView.centerYAnchor],
+            [_valueLabel.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-34],
+        ]];
     }
     return self;
+}
+
++ (NSArray<NSString *> *)kgAllThemeNames {
+    // 多根目录扫描（与 tweak 一致），/var/jb 优先
+    NSArray *roots = @[KG_THEMES_DIR,
+                       @"/var/mobile/Library/KeyboardGlass/Themes",
+                       @"/Library/KeyboardGlass/Themes"];
+    NSMutableArray *out = [NSMutableArray array];
+    NSMutableSet *seen = [NSMutableSet set];
+    NSFileManager *fm = NSFileManager.defaultManager;
+    for (NSString *root in roots) {
+        for (NSString *item in [fm contentsOfDirectoryAtPath:root error:NULL]) {
+            if ([item hasPrefix:@"."]) continue;
+            NSString *full = [root stringByAppendingPathComponent:item];
+            BOOL isDir = NO;
+            if ([fm fileExistsAtPath:full isDirectory:&isDir] && isDir && ![seen containsObject:item]) {
+                [seen addObject:item];
+                [out addObject:item];
+            }
+        }
+    }
+    return out;
 }
 
 - (NSString *)kgCurrentTheme {
     CFPreferencesAppSynchronize((__bridge CFStringRef)KG_DOMAIN);
     CFPropertyListRef v = CFPreferencesCopyAppValue(CFSTR("ActiveTheme"), (__bridge CFStringRef)KG_DOMAIN);
-    NSString *out = v ? [(id)CFBridgingRelease(v) copy] : nil;
-    return out;
+    return v ? [(id)CFBridgingRelease(v) copy] : nil;
 }
 
 - (void)kgSync {
     NSString *theme = [self kgCurrentTheme];
-    _valueLabel.text = theme.length ? theme : @"未选择";
+    NSArray *all = [KGThemePickerCell kgAllThemeNames];
+    if (theme.length) {
+        _valueLabel.text = theme;
+    } else if (all.count) {
+        _valueLabel.text = [NSString stringWithFormat:@"自动（%@）", all.firstObject];
+    } else {
+        _valueLabel.text = @"未发现主题";
+    }
 }
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    CGFloat w = self.contentView.bounds.size.width;
-    _valueLabel.frame = CGRectMake(w * 0.45, 12, w * 0.5, 24);
     [self kgSync];
 }
 
@@ -46,55 +79,54 @@
     [self kgSync];
 }
 
+- (void)kgApplyTheme:(NSString *)name {
+    CFPreferencesSetAppValue(CFSTR("ActiveTheme"), (__bridge CFPropertyListRef)(name ?: @""),
+                             (__bridge CFStringRef)KG_DOMAIN);
+    CFPreferencesAppSynchronize((__bridge CFStringRef)KG_DOMAIN);
+    CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
+                                         (__bridge CFStringRef)KG_CHANGED, NULL, NULL, true);
+    [self kgSync];
+}
+
+// 点行弹出选择（PSListController 里 didSelectRowAtIndexPath 转发到这里）
 - (void)kgPickTheme {
     UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"选择主题"
                                                                    message:nil
                                                             preferredStyle:UIAlertControllerStyleActionSheet];
 
-    [sheet addAction:[UIAlertAction actionWithTitle:@"不使用主题" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
-        CFPreferencesSetAppValue(CFSTR("ActiveTheme"), (__bridge CFPropertyListRef)@"",
-                                 (__bridge CFStringRef)KG_DOMAIN);
-        CFPreferencesAppSynchronize((__bridge CFStringRef)KG_DOMAIN);
-        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
-                                             (__bridge CFStringRef)KG_CHANGED, NULL, NULL, true);
-        [self kgSync];
+    NSArray *all = [KGThemePickerCell kgAllThemeNames];
+    if (!all.count) {
+        [sheet addAction:[UIAlertAction actionWithTitle:@"没有发现主题目录" style:UIAlertActionStyleCancel handler:nil]];
+        sheet.message = @"请先把主题文件夹放进 /var/jb/Library/KeyboardGlass/Themes/";
+    }
+
+    [sheet addAction:[UIAlertAction actionWithTitle:@"自动（第一个主题）" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
+        [self kgApplyTheme:nil];
     }]];
 
-    NSArray *items = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:KG_THEMES_DIR error:NULL];
-    for (NSString *item in items) {
-        if ([item hasPrefix:@"."]) continue;
-        NSString *full = [KG_THEMES_DIR stringByAppendingPathComponent:item];
-        BOOL isDir = NO;
-        if (![[NSFileManager defaultManager] fileExistsAtPath:full isDirectory:&isDir] || !isDir) continue;
-
+    for (NSString *item in all) {
         [sheet addAction:[UIAlertAction actionWithTitle:item style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
-            CFPreferencesSetAppValue(CFSTR("ActiveTheme"), (__bridge CFPropertyListRef)item,
-                                     (__bridge CFStringRef)KG_DOMAIN);
-            CFPreferencesAppSynchronize((__bridge CFStringRef)KG_DOMAIN);
-            CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
-                                                 (__bridge CFStringRef)KG_CHANGED, NULL, NULL, true);
-            [self kgSync];
+            [self kgApplyTheme:item];
         }]];
     }
 
     [sheet addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
 
-    // iPad 需要锚点
     if (sheet.popoverPresentationController) {
         sheet.popoverPresentationController.sourceView = self.contentView;
         sheet.popoverPresentationController.sourceRect = self.contentView.bounds;
     }
 
-    [[self.windowOrNil rootViewController] presentViewController:sheet animated:YES completion:nil];
-}
-
-- (UIWindow *)windowOrNil {
     UIWindow *window = self.window;
-    if (window) return window;
-    for (UIWindow *w in UIApplication.sharedApplication.windows) {
-        if (w.isKeyWindow) return w;
+    if (!window) {
+        for (UIWindow *w in UIApplication.sharedApplication.windows) {
+            if (w.isKeyWindow) { window = w; break; }
+        }
+        if (!window) window = UIApplication.sharedApplication.windows.firstObject;
     }
-    return UIApplication.sharedApplication.windows.firstObject;
+    UIViewController *presenter = window.rootViewController;
+    while (presenter.presentedViewController) presenter = presenter.presentedViewController;
+    [presenter presentViewController:sheet animated:YES completion:nil];
 }
 
 @end

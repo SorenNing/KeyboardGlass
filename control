@@ -1,6 +1,6 @@
 Package: com.ning.keyboardglass
 Name: KeyboardGlass
-Version: 0.1
+Version: 0.2
 Architecture: iphoneos-arm64e
 Description: 键盘美化（照 Laetus 图像主题方式）：按 keyplane 命名的主题图铺满键盘背景，可隐藏原键帽阴影 (iOS 15-17, RootHide)
 Maintainer: Ning
