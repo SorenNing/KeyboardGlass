@@ -4,11 +4,11 @@ O=P/'dist'; O.mkdir(exist_ok=True)
 def run(a): subprocess.run(a,check=True,cwd=P)
 sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()
 f=O/'NingKeyboardGlass.dylib'
-run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysroot',sdk,'-dynamiclib','-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror','KeyboardBackground.m','-framework','UIKit','-framework','Foundation','-framework','CoreGraphics','-install_name','/Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib','-o',str(f)])
+run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysroot',sdk,'-dynamiclib','-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror','KeyboardBackground.m','KeyboardSurface.m','CandidateAppearance.m','-framework','UIKit','-framework','Foundation','-framework','CoreGraphics','-framework','QuartzCore','-install_name','/Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib','-o',str(f)])
 run(['codesign','--force','--sign','-',str(f)])
 run(['codesign','--verify','--strict','--all-architectures',str(f)])
 b=f.read_bytes(); assert struct.unpack_from('<I',b,8)[0]==0x80000002
-control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.1.0\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nDepends: firmware (>= 17.0), mobilesubstrate\nDescription: Static transparent keyboard background. No live rendering.\n'
+control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.1.1\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nDepends: firmware (>= 17.0), mobilesubstrate\nDescription: Static transparent keyboard background. No live rendering.\n'
 flt=plistlib.dumps({'Filter':{'Bundles':['com.apple.UIKit']}})
 files={'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib':b,'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.plist':flt}
 def tar(files):
@@ -31,7 +31,7 @@ for name,data in parts.items():
  h=f'{name+"/":<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(data):<10}`\n'.encode();assert len(h)==60
  out+=h+data
  if len(data)%2:out+=b'\n'
-deb=O/'com.ning.keyboardglass_0.1.0_iphoneos-arm64e.deb';deb.write_bytes(out)
+deb=O/'com.ning.keyboardglass_0.1.1_iphoneos-arm64e.deb';deb.write_bytes(out)
 # Verify bytes in final package, not only pre-package library.
 with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
  actual=t.extractfile('./Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib').read()
