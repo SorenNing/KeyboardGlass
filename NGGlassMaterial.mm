@@ -22,7 +22,7 @@ static UIImage *NGFixedImage(UIUserInterfaceStyle style) {
     dispatch_once(&once, ^{
         NSBundle *bundle=NGGlassResources();
         for (NSUInteger i=0;i<2;i++) {
-            NSString *name=i?@"GlassifyRegularDark":@"GlassifyRegularLight";
+            NSString *name=i?@"GlassifyClearDark":@"GlassifyClearLight";
             NSData *data=[NSData dataWithContentsOfFile:[bundle pathForResource:name ofType:@"png"]];
             UIImage *raw=[UIImage imageWithData:data scale:3];
             UIImage *image=[raw resizableImageWithCapInsets:UIEdgeInsetsMake(30,32,30,32) resizingMode:UIImageResizingModeStretch];

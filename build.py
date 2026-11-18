@@ -18,7 +18,7 @@ O = P / 'dist'
 B = P / 'build/native64e'
 V = P / 'Vendor/Glassify'
 G = V / 'Sources/Glassify'
-VERSION = '0.1.3'
+VERSION = '0.1.4'
 TARGET = 'arm64e-apple-ios17.0'
 LIB = Path('Library/MobileSubstrate/DynamicLibraries')
 RESOURCE = LIB / 'NingKeyboardGlassResources.bundle'
@@ -140,12 +140,12 @@ def bake_assets(directory):
          '-framework', 'ImageIO', '-o', executable])
     run([executable, library, directory])
     result = json.loads((directory / 'material.json').read_text())
-    if result['source_rgb'] != [128, 128, 128] or result['style'] != 'Regular' or result['frost'] != 'Automatic':
+    if result['source_rgb'] != [128, 128, 128] or result['style'] != 'Clear' or result['frost'] != 'Automatic':
         raise RuntimeError('Unexpected baked material')
     if result['png_alpha_rewritten'] or result['original_input_fields_overridden']:
         raise RuntimeError('Original material was changed')
     for mode in ('Light', 'Dark'):
-        data = (directory / ('GlassifyRegular' + mode + '.png')).read_bytes()
+        data = (directory / ('GlassifyClear' + mode + '.png')).read_bytes()
         if not data.startswith(b'\x89PNG\r\n\x1a\n') or struct.unpack_from('>II', data, 16) != (576, 186):
             raise RuntimeError('Missing native baked output')
     return result
@@ -164,7 +164,7 @@ def make_resources(stage):
     (resources / 'Glassify-LICENSE.txt').write_bytes((V / 'LICENSE').read_bytes())
     provenance = {'revision': check_vendor()['revision'], 'original_files_unmodified': True,
                   'bake': baked, 'assets': {name: digest((resources / name).read_bytes()) for name in
-                       ('GlassifyRegularLight.png', 'GlassifyRegularDark.png', 'default.metallib')}}
+                       ('GlassifyClearLight.png', 'GlassifyClearDark.png', 'default.metallib')}}
     write_json(resources / 'provenance.json', provenance)
     return provenance
 

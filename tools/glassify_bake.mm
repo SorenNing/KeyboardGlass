@@ -57,9 +57,8 @@ static NSDictionary *Bake(id<MTLDevice> device, id<MTLCommandQueue> queue,
     const float width=192,height=62,scale=3,radius=31;
     const float neutral=128.f/255.f;
     const float luma=quantizeLuma(neutral);
-    // Same stock regular/automatic material as GLSTabBarView's _platter.
-    // No field in GlassInputs is overwritten after the original factory.
-    GlassInputs inputs=glassInputsFor(GlassStyle::Regular,dark?Appearance::Dark:Appearance::Light,
+    // Stock Glassify Clear/Automatic preset, without modifying its fields.
+    GlassInputs inputs=glassInputsFor(GlassStyle::Clear,dark?Appearance::Dark:Appearance::Light,
                                       width,height,luma,Frost::Automatic);
     const float margin=std::ceil(std::max({inputs.marginWidth,2.f*inputs.shadowRadius+8.f,
                          inputs.tint[3]>0?inputs.tintFadeDistance+2.f:0.f}));
@@ -68,7 +67,7 @@ static NSDictionary *Bake(id<MTLDevice> device, id<MTLCommandQueue> queue,
     const NSUInteger pixelWidth=(NSUInteger)std::ceil(surfaceWidth*scale);
     const NSUInteger pixelHeight=(NSUInteger)std::ceil(surfaceHeight*scale);
     const NSUInteger outputWidth=(NSUInteger)(width*scale),outputHeight=(NSUInteger)(height*scale);
-    ShapeElement shape={pad+width/2,pad+height/2,width,height,radius,0.5f};
+    ShapeElement shape={pad+width/2,pad+height/2,width,height,radius,0.f};
     PackContext context;
     context.ptToPx=scale;context.elements=&shape;context.elementCount=1;
     context.backdropWidth=surfaceWidth;context.backdropHeight=surfaceHeight;
@@ -136,7 +135,7 @@ static NSDictionary *Bake(id<MTLDevice> device, id<MTLCommandQueue> queue,
     const uint8_t *bytes=(const uint8_t *)readback.contents;
     NSUInteger center=(outputHeight/2)*stride+(outputWidth/2)*4;
     Require(bytes[center+3]>=250,"Glassify output center is not a completed opaque scene");
-    NSString *name=dark?@"GlassifyRegularDark.png":@"GlassifyRegularLight.png";
+    NSString *name=dark?@"GlassifyClearDark.png":@"GlassifyClearLight.png";
     SavePNG(readback,outputWidth,outputHeight,stride,[directory stringByAppendingPathComponent:name]);
     return @{@"file":name,@"appearance":dark?@"Dark":@"Light",@"width":@(outputWidth),@"height":@(outputHeight),
              @"center_bgra":@[@(bytes[center]),@(bytes[center+1]),@(bytes[center+2]),@(bytes[center+3])],
@@ -160,7 +159,7 @@ int main(int argc, const char *argv[]) {
             NSDictionary *dark=Bake(device,queue,background,highlight,true,directory);
             NSDictionary *receipt=@{
                 @"generated_by":@"original Glassify Core factory and two-pass Metal shader",
-                @"style":@"Regular",@"frost":@"Automatic",@"tint":@"nil",@"content_vibrancy":@NO,
+                @"style":@"Clear",@"frost":@"Automatic",@"tint":@"nil",@"content_vibrancy":@NO,
                 @"source_rgb":@[@128,@128,@128],@"source_alpha":@255,@"source_kind":@"fixed neutral scene",
                 @"platter_points":@[@192,@62],@"corner_radius_points":@31,@"scale":@3,
                 @"original_input_fields_overridden":@NO,@"png_alpha_rewritten":@NO,@"runtime_rendering":@NO,
@@ -168,7 +167,7 @@ int main(int argc, const char *argv[]) {
                 @"outputs":@[light,dark]};
             NSData *json=[NSJSONSerialization dataWithJSONObject:receipt options:NSJSONWritingPrettyPrinted error:&error];
             Require(json && [json writeToFile:[directory stringByAppendingPathComponent:@"material.json"] options:NSDataWritingAtomic error:&error],"Cannot write provenance");
-            std::puts("Original Glassify Regular: light/dark fixed scenes rendered successfully");
+            std::puts("Original Glassify Clear: light/dark fixed scenes rendered successfully");
             return 0;
         } catch (const std::exception &error) {
             std::fprintf(stderr,"glassify-bake: %s\n",error.what());return 1;
