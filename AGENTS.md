@@ -26,6 +26,10 @@ Requires Swift-capable compiler plus matching iPhoneOS SDK, clang, ldid and dpkg
 
 CI run 44316999330 at commit d08f39616f7f0e74b21908b11ce1c530388ad197 compiled, signed and checked the arm64e dylib successfully. Download the public artifact through `https://nightly.link/SorenNing/KeyboardGlass/actions/runs/44316999330/keyboard-glass-theseus-64e.zip` to `.build/ci-artifacts/keyboard-glass-theseus-64e.zip`. `tools/package_ci.py` pins the GitHub ZIP digest and receipt/dylib digests, architecture and notices. The producer uses this artifact when present; otherwise it compiles locally. This artifact supports roothide only; rootless requires its own compilation. Apelin debug build 399552f0-f3a4-4cbd-bab6-331c80f6bb21 successfully produced version 0.2.0-theseus5. No installation or runtime validation occurred. The precompiled load marker contains the CI commit, not the packaging build ID: automatic confirmation against the packaging ID cannot prove its load. Provenance in the package records both IDs.
 
+## Current diagnostic build
+
+CI run 44322778140 at commit 84ae41a5a8e73ed5c7c838338aae53687ec10d95 passed compilation/signature/arm64e checks. The producer now pins this diagnostic artifact (same nightly.link URL pattern with the new run ID). Apelin build 2b32a3f3-f04d-48fd-b659-85c3dc605abd produced 0.2.0-theseus6. It logs layout clearing and material early-return states at most once per state per two seconds, without input text. It is not installed or runtime-tested. A live-log session on theseus5 observed Preferences constructor marker and hook installation, but no first GPU frame; actual layout invocation remains unproven. The historical artifact details above are archival, not the active pin.
+
 ## Checks and device validation
 
 Read vendor manifest and verify SHA256, compare baseline files to original Git blobs, parse Python/JSON, inspect Git diff. Then build roothide debug with apelin_project_build after environment is repaired. Runtime shader compilation is separately unverified.

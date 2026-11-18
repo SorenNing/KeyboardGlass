@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 
-VERSION = '0.2.0-theseus5'
+VERSION = '0.2.0-theseus6'
 ROOT = Path(__file__).resolve().parents[1]
 
 def run(args):
