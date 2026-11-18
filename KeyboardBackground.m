@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
+#import <QuartzCore/QuartzCore.h>
 #import "Material.h"
 
 // Pre-rendered approximation only. No capture, display link or Metal renderer.
@@ -17,7 +18,49 @@ static UIImage *NGMaterial(void) {
 }
 static NSHashTable<UIVisualEffectView *> *NGHosts;
 static const void *NGSharedKey = &NGSharedKey;
+static const void *NGEdgeKey = &NGEdgeKey;
 static BOOL NGUpdatePending;
+
+static UIBezierPath *NGOuterEdgePath(CGRect bounds) {
+    CGFloat width = CGRectGetWidth(bounds), height = CGRectGetHeight(bounds);
+    CGFloat band = MIN(3.0, MIN(width,height)/8.0);
+    CGFloat radius = MIN(14.0, MIN(width,height)/2.0);
+    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:bounds cornerRadius:radius];
+    [path appendPath:[UIBezierPath bezierPathWithRoundedRect:CGRectInset(bounds,band,band)
+                                               cornerRadius:MAX(0.0,radius-band)]];
+    path.usesEvenOddFillRule = YES;
+    return path;
+}
+
+static void NGRestoreSharedEdge(UIView *parent, UIImageView *shared) {
+    UIImageView *edge = objc_getAssociatedObject(parent,NGEdgeKey);
+    if (!edge) {
+        edge = [[UIImageView alloc] initWithImage:NGMaterial()];
+        edge.userInteractionEnabled = NO;
+        edge.isAccessibilityElement = NO;
+        edge.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        CAShapeLayer *mask = [CAShapeLayer layer];
+        mask.fillRule = kCAFillRuleEvenOdd;
+        edge.layer.mask = mask;
+        objc_setAssociatedObject(parent,NGEdgeKey,edge,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    // Place only the rim over the system background, never over the keys.
+    UIView *reference = nil;
+    for (UIView *child in parent.subviews) {
+        if (child == shared || child == edge) continue;
+        if ([child isKindOfClass:NSClassFromString(@"UIKBBackdropView")] ||
+            [child isKindOfClass:NSClassFromString(@"UIKBInputBackdropView")]) reference = child;
+    }
+    if (reference) {
+        [parent insertSubview:edge aboveSubview:reference];
+    } else {
+        [parent insertSubview:edge aboveSubview:shared];
+    }
+    edge.frame = parent.bounds;
+    CAShapeLayer *mask = (CAShapeLayer *)edge.layer.mask;
+    mask.frame = edge.bounds;
+    mask.path = NGOuterEdgePath(edge.bounds).CGPath;
+}
 
 static UIView *NGKeyboardHost(UIView *view) {
     Class cls = NSClassFromString(@"UIInputSetHostView");
@@ -49,6 +92,7 @@ static void NGUpdateShared(void) {
         }
         shared.frame = bounds;
         shared.hidden = NO;
+        NGRestoreSharedEdge(parent, shared);
         for (UIVisualEffectView *member in hosts) {
             if (NGKeyboardHost(member) != parent) continue;
             UIImageView *old = objc_getAssociatedObject(member, NGImageKey);
