@@ -179,7 +179,7 @@ def make_prefs(stage, sdk):
     entry = stage / 'Library/PreferenceLoader/Preferences/KeyboardGlass.plist'
     entry.parent.mkdir(parents=True, exist_ok=True)
     entry.write_bytes((P / 'prefs/Resources/entry.plist').read_bytes())
-    sources = [P / 'prefs/NGKeyboardGlassRootListController.m']
+    sources = [P / 'prefs/NGKeyboardGlassRootListController.m', P / 'prefs/NGKeyboardPreferenceStore.m']
     objects = compile_sources(sources, B / 'prefs-objects', sdk)
     executable = destination / 'KeyboardGlassPrefs'
     link(objects, executable, sdk, ['-bundle', '-F', P / 'tools', '-framework', 'Preferences'])
