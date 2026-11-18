@@ -16,6 +16,17 @@ static void NGLayout(UIVisualEffectView *host, SEL selector) {
     if (![host.contentView.backgroundColor isEqual:UIColor.clearColor]) host.contentView.backgroundColor = UIColor.clearColor;
     Class bridge = NSClassFromString(@"NGTheseusBridge");
     SEL apply = NSSelectorFromString(@"applyTo:");
+    static CFTimeInterval lastDiagnostic = -10;
+    CFTimeInterval now = CFAbsoluteTimeGetCurrent();
+    if (now - lastDiagnostic >= 2) {
+        lastDiagnostic = now;
+        os_log(os_log_create("com.ning.keyboardglass", "layout"),
+               "layout cleared build=%{public}s host=%{public}@ window=%{public}@ width=%.1f height=%.1f effectRemaining=%d bridge=%d",
+               APELIN_BUILD_ID, NSStringFromClass(host.class),
+               host.window ? NSStringFromClass(host.window.class) : @"none",
+               (double)host.bounds.size.width, (double)host.bounds.size.height,
+               host.effect != nil, [bridge respondsToSelector:apply]);
+    }
     if ([bridge respondsToSelector:apply]) {
         ((void (*)(id, SEL, id))objc_msgSend)(bridge, apply, host);
     }

@@ -5,6 +5,15 @@ import os.log
 
 private let log = OSLog(subsystem: "com.ning.keyboardglass", category: "material")
 private var materialKey: UInt8 = 0
+private var diagnosticTimes: [String: CFTimeInterval] = [:]
+
+// State labels only: never log key text, candidates or app content.
+private func materialDiagnostic(_ state: String) {
+    let now = CFAbsoluteTimeGetCurrent()
+    guard now - (diagnosticTimes[state] ?? -10) >= 2 else { return }
+    diagnosticTimes[state] = now
+    os_log("Theseus state=%{public}@", log: log, type: .default, state)
+}
 
 @objc(NGTheseusBridge)
 final class NGTheseusBridge: NSObject {
@@ -14,9 +23,14 @@ final class NGTheseusBridge: NSObject {
             material.refresh()
             return
         }
-        guard host.window != nil, !host.bounds.isEmpty,
-              MetalContext.shared != nil,
-              let source = KeyboardMaterial.source(for: host) else { return }
+        guard host.window != nil else { materialDiagnostic("no-window"); return }
+        guard !host.bounds.isEmpty else { materialDiagnostic("empty-bounds"); return }
+        guard MetalContext.shared != nil else { materialDiagnostic("metal-context-unavailable"); return }
+        guard let source = KeyboardMaterial.source(for: host) else {
+            materialDiagnostic("no-same-scene-source")
+            return
+        }
+        materialDiagnostic("creating-material")
         let material = KeyboardMaterial(host: host, source: source)
         objc_setAssociatedObject(host, &materialKey, material, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         host.contentView.insertSubview(material, at: 0)
@@ -82,6 +96,7 @@ private final class KeyboardMaterial: UIView {
     func refresh() {
         guard let host = host else { return }
         guard let source = Self.source(for: host), host.window != nil else {
+            materialDiagnostic("source-lost")
             glass.pauseRendering()
             isHidden = true
             return
