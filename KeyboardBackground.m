@@ -1,22 +1,12 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
-#import "Material.h"
+#import "NGGlassMaterial.h"
+#import "NGPreferences.h"
 
-// Pre-rendered approximation only. No capture, display link or Metal renderer.
 static const void *NGImageKey = &NGImageKey;
-static UIImage *NGMaterial(void) {
-    static UIImage *image;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        NSData *data = [[NSData alloc] initWithBase64EncodedString:NGMaterialBase64 options:0];
-        UIImage *raw = [UIImage imageWithData:data scale:2];
-        image = [raw resizableImageWithCapInsets:UIEdgeInsetsMake(14,14,14,14) resizingMode:UIImageResizingModeStretch];
-    });
-    return image;
-}
-// First-version material and native base layers remain unchanged. Only the
-// image coordinate space is shared, so adjacent strips have no inner rim.
+// Keep the first-version background placement and native base-layer handling.
+// Both Glassify modes share one coordinate space across adjoining strips.
 static NSHashTable<UIVisualEffectView *> *NGHosts;
 static BOOL NGQueued;
 @interface UIView (NGKeyboardBackgroundAccessors)
@@ -45,7 +35,7 @@ static BOOL NGAdjacent(CGRect a, CGRect b) {
     return overlap>=MIN(a.size.width,b.size.width)*0.8 && gap<=4;
 }
 static void NGArrow(UIView *view) {
-    if (![view isKindOfClass:NSClassFromString(@"TUICandidateArrowButton")] || !NGMaterial()) return;
+    if (![view isKindOfClass:NSClassFromString(@"TUICandidateArrowButton")] || !NGGlassAvailable()) return;
     static const void *busyKey=&busyKey;
     if ([objc_getAssociatedObject(view,busyKey) boolValue]) return;
     objc_setAssociatedObject(view,busyKey,@YES,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -73,9 +63,9 @@ static void NGJoin(void) {
     NSArray<UIVisualEffectView *> *hosts=NGHosts.allObjects;
     if (hosts.count>32) return;
     for (UIVisualEffectView *host in hosts) {
-        UIImageView *image=objc_getAssociatedObject(host,NGImageKey);
+        UIView *image=objc_getAssociatedObject(host,NGImageKey);
         image.hidden=!NGVisible(host);
-        if (image.hidden) continue;
+        if (image.hidden) { NGGlassPause(image); continue; }
         UIView *scope=NGAncestor(host,@"UIInputSetHostView") ?: host.window;
         CGRect area=NGRegion(host);
         BOOL joined=NO;
@@ -101,6 +91,7 @@ static void NGJoin(void) {
             // images between joined strips must not draw a second inner edge.
             if (joined && [host respondsToSelector:@selector(imageForCorners)] && [host imageForCorners]) [host setImageForCorners:nil];
         }];
+        NGGlassUpdate(image,host,NO);
         UIView *candidate=NGAncestor(host,@"TUICandidateView");
         if ([candidate respondsToSelector:@selector(arrowButton)]) NGArrow([candidate arrowButton]);
     }
@@ -114,11 +105,10 @@ static void NGApply(UIVisualEffectView *host) {
     UIView *arrow=NGAncestor(host,@"TUICandidateArrowButton");
     if (arrow) { NGArrow(arrow); return; }
     if (!host.window || CGRectIsEmpty(host.bounds)) { NGScheduleJoin(); return; }
-    UIImage *material=NGMaterial();
-    if (!material) return;
-    UIImageView *view=objc_getAssociatedObject(host,NGImageKey);
+    if (!NGGlassAvailable()) return;
+    UIView *view=objc_getAssociatedObject(host,NGImageKey);
     if (!view) {
-        view=[[UIImageView alloc] initWithImage:material];
+        view=NGGlassMake();
         view.userInteractionEnabled=NO;
         view.isAccessibilityElement=NO;
         view.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
@@ -171,8 +161,16 @@ static void NGInstallAvailable(void) {
         NGInstallOne(arrow,NSSelectorFromString(@"udpateBackgroundColor"),(IMP)NGArrowColor,(IMP *)&NGArrowColorOriginal);
     }
 }
+static void NGModeChanged(void) {
+    for (UIVisualEffectView *host in NGHosts.allObjects) {
+        UIView *material=objc_getAssociatedObject(host,NGImageKey);
+        NGGlassPause(material);
+    }
+    NGScheduleJoin();
+}
 __attribute__((constructor)) static void NGInstall(void) {
     @autoreleasepool {
+        NGKeyboardPreferencesObserve(NGModeChanged);
         NGInstallAvailable();
         [[NSNotificationCenter defaultCenter] addObserverForName:NSBundleDidLoadNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note) { NGInstallAvailable(); }];
     }

@@ -1,0 +1,10 @@
+--- !tapi-tbd
+tbd-version: 4
+targets: [ arm64e-ios ]
+install-name: '/System/Library/PrivateFrameworks/Preferences.framework/Preferences'
+current-version: 0
+compatibility-version: 0
+exports:
+  - targets: [ arm64e-ios ]
+    objc-classes: [ PSListController, PSSpecifier, PSTableCell, PSViewController ]
+...
