@@ -8,13 +8,18 @@ import shutil
 import subprocess
 import tempfile
 
-VERSION = '0.2.0-theseus3'
+VERSION = '0.2.0-theseus5'
 ROOT = Path(__file__).resolve().parents[1]
 
 def run(args):
     subprocess.run([str(a) for a in args], cwd=ROOT, check=True)
 
 def main():
+    archive = ROOT / '.build/ci-artifacts/keyboard-glass-theseus-64e.zip'
+    if archive.is_file():
+        from package_ci import package
+        package(ROOT, archive, VERSION)
+        return
     required = ('APELIN_PROJECT_ROOT', 'APELIN_PACKAGE_DIR', 'APELIN_BOOTSTRAP',
                 'APELIN_ARCHITECTURE', 'APELIN_BUILD_ID', 'TMPDIR', 'SDKROOT')
     env = {key: os.environ[key] for key in required}
