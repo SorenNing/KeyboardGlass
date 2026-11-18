@@ -26,6 +26,15 @@ def main():
         work = Path(tmp)
         src = work / 'Sources'
         shutil.copytree(vendor / 'Sources/Theseus', src)
+        switch = src / 'Components/TheseusSwitch.swift'
+        text = switch.read_text()
+        # No SwiftPM resource bundle is emitted by this direct compiler build.
+        # Preserve upstream's explicit English default accessibility values.
+        for value, state in [('On', 'on'), ('Off', 'off')]:
+            old = f'NSLocalizedString("{value}", tableName: nil, bundle: .module, value: "{value}", comment: "Spoken value of a switch that is {state}")'
+            assert text.count(old) == 1
+            text = text.replace(old, json.dumps(value))
+        switch.write_text(text)
         view = src / 'Core/TheseusView.swift'
         text = view.read_text()
         old = 'let shouldUseFallback = TheseusSettings.shared.shouldUseFallback'
