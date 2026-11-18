@@ -138,6 +138,15 @@ static void NGLayout(id self, SEL cmd) {
     NGOriginalLayout(self,cmd);
     NGApply(self);
 }
+static void (*NGOriginalBackgroundLayout)(id,SEL);
+static void NGBackgroundLayout(id self, SEL cmd) {
+    NGOriginalBackgroundLayout(self,cmd);
+    // Only the native keyboard fill is hidden; key views and input controls
+    // remain untouched. The shared first-version image stays visible above it.
+    UIView *view=(UIView *)self;
+    view.backgroundColor=UIColor.clearColor;
+    view.alpha=0.0;
+}
 static BOOL NGHasVoidMethod(Class cls, SEL selector) {
     Method m=class_getInstanceMethod(cls,selector);
     if (!m || method_getNumberOfArguments(m)!=2) return NO;
@@ -158,5 +167,9 @@ __attribute__((constructor)) static void NGInstall(void) {
         if (installed) return;
         installed=YES;
         hook(cls,sel,(IMP)NGLayout,(IMP *)&NGOriginalLayout);
+        Class background=NSClassFromString(@"UIKBBackgroundView");
+        SEL backgroundSel=@selector(layoutSubviews);
+        if (background && NGHasVoidMethod(background,backgroundSel))
+            hook(background,backgroundSel,(IMP)NGBackgroundLayout,(IMP *)&NGOriginalBackgroundLayout);
     }
 }
