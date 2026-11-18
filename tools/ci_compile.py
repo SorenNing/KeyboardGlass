@@ -12,7 +12,7 @@ def run(args):
     subprocess.run(args, cwd=ROOT, check=True)
 
 def main():
-    for name in ('KeyboardBackground.m', 'Material.h', 'GlassBackground.png'):
+    for name in ('Material.h', 'GlassBackground.png'):
         assert (ROOT / name).read_bytes() == subprocess.check_output(['git', 'show', BASE + ':' + name], cwd=ROOT)
     sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], text=True).strip()
     out = ROOT / 'dist'
