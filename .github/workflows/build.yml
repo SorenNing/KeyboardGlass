@@ -1,20 +1,20 @@
-name: Keyboard Glass 64e
+name: Keyboard Glass Theseus 64e
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-26-intel
-    timeout-minutes: 12
+    runs-on: macos-26
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Build and verify native RootHide package
-        run: python3 build.py
+      - name: Compile Theseus keyboard material
+        run: python3 tools/ci_compile.py
       - uses: actions/upload-artifact@v4
         with:
-          name: keyboard-glass-64e
-          path: |
-            dist/*.deb
-            dist/verification.json
+          name: keyboard-glass-theseus-64e
+          path: dist/
           if-no-files-found: error
