@@ -1,13 +1,11 @@
-# KeyboardGlass 0.1.3
+# Keyboard static glass prototype
 
-Target: iOS 17.2.1 / RootHide, all App system keyboards. Author: Ning&Hung Phan.
+Target: iOS 17.2.1 / RootHide, system keyboard background only.
 
-The keyboard background uses the original Glassify Regular platter material with no tab buttons, labels, pill, or lens. Candidate strip, keyboard body, and expand area retain the first-version shared background placement and arrow interaction.
+KeyboardBackground.m hooks UIKBBackdropView layoutSubviews through MSHookMessageEx after checking class ancestry and return ABI. Original layout runs first. It puts one noninteractive stretchable UIImageView into the background contentView and clears the background effect. Resource decoding happens once; no screenshots, Metal, timers or display links.
 
-Settings -> Keyboard Glass -> Glass Mode selects:
-- Fixed Glass (default): the original Glassify Regular shader is executed at build time over the documented neutral 128/255 scene; the device displays the resulting light/dark PNG and does not run Glassify Metal.
-- On-demand Glass: the original Glassify Regular GLSGlassView is used after a single local background snapshot on keyboard show, size, or appearance changes. `tracksBackdropMotion` stays off; there is no continuous display-link refresh. If the host cannot be read, the fixed Glassify asset remains visible.
+GlassBackground.png is an original CPU-generated transparent white body and rim approximation inspired by the requested Theseus appearance. It is NOT an output baked from Theseus's shader and does not reproduce refraction. Material.h embeds the same PNG so runtime resource paths are unnecessary.
 
-Vendor/Glassify files are checked against revision a8e52aa9c015502fb68d5f81687698f11df6977d and are not modified. Build-time provenance records the fixed scene, original factory fields, output hashes, and whether native GPU baking completed. The runtime dylib links the original Glassify platform/core code for on-demand mode and carries the original shader metallib plus fixed assets.
+arm64 and arm64e Objective-C syntax checks passed with iPhoneOS16.5 SDK. No iOS link, signing, package, injection or runtime test has occurred. The package filter targets UIKit processes; actual keyboard-host coverage requires device testing. UIKBBackdropView is supported by the iOS17.2 header; actual 17.2.1 appearance and whether lower layers remain opaque are unverified. Clearing UIVisualEffectView.effect can change content vibrancy and must be checked on-device. This source is a prototype, not a ready-to-install package.
 
-No device install, injection, or runtime visual test is implied by source or CI checks.
+User selected SorenNing for the new independent KeyboardGlass repository and one 64e test build. Manual-only workflow uses native Xcode arm64e compilation, verifies subtype 0x80000002 and strictly verifies signatures again on the library extracted from the final deb. Author: Ning. This prototype uses an embedded image and UIKit only, with no jbroot filesystem API dependency.
