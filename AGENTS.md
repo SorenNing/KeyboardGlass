@@ -1,37 +1,13 @@
-# KeyboardGlass Theseus experiment
+# KeyboardGlass original implementation restored
 
-## Scope and baseline
+User requested rollback from Theseus to original 0.1.0. Active KeyboardBackground.m, Material.h and GlassBackground.png match commit 82d5fc92f415391a42ae6a20ca5a046dac7221f0 byte-for-byte. Baseline/0.1.0 remains archival. Sources/ and Vendor/Theseus remain historical experimental files, excluded from the active build. No Swift, Metal or Theseus is compiled into the rollback.
 
-Start: SorenNing/KeyboardGlass main commit 82d5fc92f415391a42ae6a20ca5a046dac7221f0, original version 0.1.0. Baseline/0.1.0 preserves the original KeyboardBackground.m, Material.h, GlassBackground.png and build.py byte-for-byte. This directory is archival, never compiled by the active build. Recover original files explicitly from that directory or the original Git commit; there is no automatic static fallback.
+Package ID remains com.ning.keyboardglass. tools/apelin_build.py VERSION is 0.2.1-rollback1, deliberately higher than installed 0.2.0-theseus6 so implementation rollback can upgrade normally. Increment VERSION before each formal build attempt.
 
-Package ID stays com.ning.keyboardglass. Active experimental version is tools/apelin_build.py VERSION (0.2.0-theseus1 initially), deliberately distinct from historical 0.1.7. Increment VERSION before each new formal build attempt.
+Only apelin_project_build invokes tools/apelin_build.py to produce a package. tools/ci_compile.py compiles only the original Objective-C source using the original compiler flags and frameworks, signs and verifies arm64e output, and uploads a receipt; it never produces a package. The root build.py and archived baseline build.py are never executed. CI workflow still uses historical artifact name keyboard-glass-theseus-64e, but the rollback artifact contains only the original dynamic library and verification.json.
 
-## Material
+Verified CI run 44332720926, commit 5f41d796aa8bb2dbf374ce6c18775b0d71447f45. Download https://nightly.link/SorenNing/KeyboardGlass/actions/runs/44332720926/keyboard-glass-theseus-64e.zip to .build/ci-artifacts/keyboard-glass-original-64e.zip. tools/package_ci.py pins the ZIP digest and validates receipt, baseline, architecture and lack of Swift/Theseus references. Only roothide arm64e is supported by this pinned artifact.
 
-Vendor/Theseus is upstream https://github.com/valzevul/Theseus at 71ca1c127a4e7fe3387361f160c4890dbd427f66. UPSTREAM.json records archive and per-file SHA256 values. LICENSE is Apache-2.0 and NOTICE credits Vadim Drobinin. Vendor files stay unmodified.
+Apelin build 66375f93-6f34-46d6-9e48-7327269dae61 produced 0.2.1-rollback1 successfully. Installation was attempted under the user's rollback authorization but refused: installed com.ning.keyboardglass 0.2.0-theseus6 came from another source. The user must remove that externally installed package with their package manager before this artifact can be installed. Never work around this by renaming the package or deleting installed files. The device remains on theseus6 until installation succeeds.
 
-Sources/KeyboardMaterial.swift uses the real TheseusView/TheseusRenderer Metal pipeline. Configuration comes from that revision's TheseusTabBar background: blur18, edgeWidth0, dispersion0, neutralBodyScale1, iOS27Chrome light/dark curves, chroma and detail values. Sources/KeyboardEdges.swift adapts upstream edgeImages from capsule to rectangular distance field and retains original profiles. It is not an exact capsule visual reproduction.
-
-The build patches temporary compilation copies only: disable TheseusView's visual-effect fallback and replace Bundle.module shader lookup with the original embedded Metal source compiled by MTLDevice at runtime. No fake static image or synthesized backdrop is allowed.
-
-Hook only UIKBBackdropView.layoutSubviews after its original implementation. Immediately clear its native effect, host color and content color before invoking Theseus, regardless of capture availability or first GPU frame. Do not restore the native background on source loss or renderer failure: the user explicitly accepts a transparent background in those cases. Material views are noninteractive. The real Theseus pipeline still requires a same-scene app window below the keyboard; own-process layer capture cannot see another process. Remote keyboard-only processes remain an unresolved material coverage limitation; do not invent or synthesize an input to hide it.
-
-## Build
-
-apelin-project.json is local/ignored. Declare external script tools/apelin_build.py with interpreter python3, arguments []. Only apelin_project_build produces packages. Never invoke the producer through shell_run, build a deb manually, or execute the archived baseline packaging script. The root build.py remains disabled. Authorized GitHub Actions now runs tools/ci_compile.py on main pushes or manual dispatch using a macOS Xcode runner. It compiles and signs the arm64e dynamic library and uploads it with a verification receipt and Theseus notices; it does not produce a .deb. Only Apelin's declared external producer creates installable packages.
-
-Requires Swift-capable compiler plus matching iPhoneOS SDK, clang, ldid and dpkg-deb in Apelin's external environment. No Theos, xcrun or hard-coded jbroot paths. Compile arm64e for roothide; arm64+arm64e for rootless. Package staging includes Theseus licensing and provenance. Current device's registered compiler folders are reported missing; its SDK27 build attempt also exposed TargetConditionals and missing UIUtilities header failures. Workspace environment binding is refused by Apelin. Local source compilation remains unverified; verified CI compilation and precompiled packaging are described below.
-
-## Verified CI artifact packaging
-
-CI run 44316999330 at commit d08f39616f7f0e74b21908b11ce1c530388ad197 compiled, signed and checked the arm64e dylib successfully. Download the public artifact through `https://nightly.link/SorenNing/KeyboardGlass/actions/runs/44316999330/keyboard-glass-theseus-64e.zip` to `.build/ci-artifacts/keyboard-glass-theseus-64e.zip`. `tools/package_ci.py` pins the GitHub ZIP digest and receipt/dylib digests, architecture and notices. The producer uses this artifact when present; otherwise it compiles locally. This artifact supports roothide only; rootless requires its own compilation. Apelin debug build 399552f0-f3a4-4cbd-bab6-331c80f6bb21 successfully produced version 0.2.0-theseus5. No installation or runtime validation occurred. The precompiled load marker contains the CI commit, not the packaging build ID: automatic confirmation against the packaging ID cannot prove its load. Provenance in the package records both IDs.
-
-## Current diagnostic build
-
-CI run 44322778140 at commit 84ae41a5a8e73ed5c7c838338aae53687ec10d95 passed compilation/signature/arm64e checks. The producer now pins this diagnostic artifact (same nightly.link URL pattern with the new run ID). Apelin build 2b32a3f3-f04d-48fd-b659-85c3dc605abd produced 0.2.0-theseus6. It logs layout clearing and material early-return states at most once per state per two seconds, without input text. It is not installed or runtime-tested. A live-log session on theseus5 observed Preferences constructor marker and hook installation, but no first GPU frame; actual layout invocation remains unproven. The historical artifact details above are archival, not the active pin.
-
-## Checks and device validation
-
-Read vendor manifest and verify SHA256, compare baseline files to original Git blobs, parse Python/JSON, inspect Git diff. Then build roothide debug with apelin_project_build after environment is repaired. Runtime shader compilation is separately unverified.
-
-No installation, push, CI execution, screen access or screenshot is authorized by the implementation request. After explicit installation authorization, use apelin_package_install then apelin_package_confirm_loaded. Live logs use com.ning.keyboardglass. Device validation must cover same-process and remote keyboards, first GPU frame, source disappearance, light/dark, rotation, repeated show/hide, letters and numbers, candidate selection, emoji, dictation and secure fields. Test performance and memory during extended typing. Visual verification requires separately authorized screenshot. Main behavior remains untested until then.
+Original source has no ApelinLoaded marker; do not claim load confirmation. Runtime appearance and keyboard interaction are untested. Ask separately before screen access or screenshots. After successful installation ask user to fully exit and reopen Settings; do not manipulate the screen without permission.
