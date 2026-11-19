@@ -120,71 +120,18 @@ static BOOL NGCandidateHost(UIVisualEffectView *host) {
            NGAncestor(host, @"TUICandidateArrowButton");
 }
 
-static BOOL NGKeyboardHost(UIVisualEffectView *host) {
-    return NGAncestor(host, @"UIKeyboard") || NGAncestor(host, @"UIKeyboardImpl");
-}
-
-static BOOL NGAdjacent(CGRect a, CGRect b, CGFloat pixel) {
-    return CGRectIntersectsRect(CGRectInset(a, -pixel, -pixel), b);
-}
-
-// Remove overlap rectangles, so translucent material is drawn once per pixel.
-static NSArray<NSValue *> *NGSubtract(NSArray<NSValue *> *parts, CGRect cut) {
-    NSMutableArray<NSValue *> *result = [NSMutableArray array];
-    for (NSValue *value in parts) {
-        CGRect r = value.CGRectValue;
-        CGRect i = CGRectIntersection(r, cut);
-        if (CGRectIsNull(i) || CGRectIsEmpty(i)) { [result addObject:value]; continue; }
-        CGRect pieces[] = {
-            CGRectMake(r.origin.x, r.origin.y, r.size.width, i.origin.y-r.origin.y),
-            CGRectMake(r.origin.x, CGRectGetMaxY(i), r.size.width, CGRectGetMaxY(r)-CGRectGetMaxY(i)),
-            CGRectMake(r.origin.x, i.origin.y, i.origin.x-r.origin.x, i.size.height),
-            CGRectMake(CGRectGetMaxX(i), i.origin.y, CGRectGetMaxX(r)-CGRectGetMaxX(i), i.size.height)
-        };
-        for (NSUInteger n=0; n<4; ++n) {
-            if (!CGRectIsEmpty(pieces[n])) [result addObject:[NSValue valueWithCGRect:pieces[n]]];
-        }
-    }
-    return result;
-}
-
-static void NGApplyJoined(UIVisualEffectView *host, UIView *scope, CGRect joined,
-                          NSArray<NSValue *> *parts) {
-    UIImageView *image = NGImageForHost(host);
-    if (!image) return;
+static void NGHideHostImage(UIVisualEffectView *host) {
     UIView *clip = objc_getAssociatedObject(host, NGClipKey);
-    if (!clip) {
-        clip = [[UIView alloc] initWithFrame:host.contentView.bounds];
-        clip.userInteractionEnabled = NO;
-        clip.isAccessibilityElement = NO;
-        clip.clipsToBounds = YES;
-        clip.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [host.contentView insertSubview:clip atIndex:0];
-        objc_setAssociatedObject(host, NGClipKey, clip, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (clip && !clip.hidden) clip.hidden = YES;
+    UIImageView *view = objc_getAssociatedObject(host, NGImageKey);
+    if (view && !view.hidden) view.hidden = YES;
+}
+
+static void NGOpenClipping(UIView *view, UIView *scope) {
+    for (UIView *current = view; current && current != scope; current = current.superview) {
+        if (current.clipsToBounds) current.clipsToBounds = NO;
+        if (current.layer.masksToBounds) current.layer.masksToBounds = NO;
     }
-    if (!CGRectEqualToRect(clip.frame, host.contentView.bounds)) clip.frame = host.contentView.bounds;
-    if (clip.hidden) clip.hidden = NO;
-    if (image.superview != clip) [clip addSubview:image];
-    if (image.hidden) image.hidden = NO;
-    image.autoresizingMask = UIViewAutoresizingNone;
-    CGRect imageFrame = [scope convertRect:joined toView:clip];
-    if (!CGRectEqualToRect(image.frame, imageFrame)) image.frame = imageFrame;
-    CAShapeLayer *mask = objc_getAssociatedObject(host, NGMaskKey);
-    if (!mask) {
-        mask = [CAShapeLayer layer];
-        objc_setAssociatedObject(host, NGMaskKey, mask, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    UIBezierPath *path = [UIBezierPath bezierPath];
-    for (NSValue *part in parts) {
-        [path appendPath:[UIBezierPath bezierPathWithRect:[scope convertRect:part.CGRectValue toView:clip]]];
-    }
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    if (!CGRectEqualToRect(mask.frame, clip.bounds)) mask.frame = clip.bounds;
-    if (!mask.path || !CGPathEqualToPath(mask.path, path.CGPath)) mask.path = path.CGPath;
-    if (clip.layer.mask != mask) clip.layer.mask = mask;
-    [CATransaction commit];
-    NGClearNativeBackdrop(host);
 }
 
 static CGRect NGRegion(UIVisualEffectView *host, UIView *scope) {
@@ -196,67 +143,79 @@ static CGRect NGRegion(UIVisualEffectView *host, UIView *scope) {
                       round(CGRectGetMaxY(r)*scale)/scale-y);
 }
 
+static BOOL NGKeyboardHost(UIVisualEffectView *host) {
+    return NGAncestor(host, @"UIKeyboard") || NGAncestor(host, @"UIKeyboardImpl");
+}
+
+// Candidate bar, expand button and the keyboard below share one continuous
+// surface. The surface is bounded by their own union box, never the screen.
 static void NGMergeScope(UIView *scope) {
     if (!scope || !scope.window || !NGMaterial()) return;
-    NSMutableArray<UIVisualEffectView *> *pending = [NSMutableArray array];
     NSMutableArray<UIVisualEffectView *> *members = [NSMutableArray array];
-    NSHashTable<UIVisualEffectView *> *joinedHosts = [NSHashTable weakObjectsHashTable];
+    NSMutableArray<UIVisualEffectView *> *joined = [NSMutableArray array];
+    BOOL hasCandidate = NO;
     for (UIVisualEffectView *host in NGHosts.allObjects) {
         if (NGScopeForHost(host) != scope) continue;
         [members addObject:host];
-        if (NGVisible(host) && (NGCandidateHost(host) || NGKeyboardHost(host))) [pending addObject:host];
+        if (!NGVisible(host)) continue;
+        BOOL candidate = NGCandidateHost(host);
+        if (!candidate && !NGKeyboardHost(host)) continue;
+        CGRect region = NGRegion(host, scope);
+        CGRect limit = CGRectInset(scope.bounds, -1, -1);
+        if (!CGRectContainsRect(limit, region)) continue;
+        [joined addObject:host];
+        hasCandidate |= candidate;
     }
-    CGFloat pixel = 1/(scope.window.screen.scale ?: 1);
-    while (pending.count) {
-        NSMutableArray<UIVisualEffectView *> *group = [NSMutableArray arrayWithObject:pending.lastObject];
-        [pending removeLastObject];
-        for (NSUInteger index=0; index<group.count; ++index) {
-            CGRect a = NGRegion(group[index], scope);
-            for (NSInteger n=(NSInteger)pending.count-1; n>=0; --n) {
-                if (NGAdjacent(a, NGRegion(pending[(NSUInteger)n], scope), pixel)) {
-                    [group addObject:pending[(NSUInteger)n]];
-                    [pending removeObjectAtIndex:(NSUInteger)n];
-                }
+    NSHashTable<UIView *> *joinedArrows = [NSHashTable weakObjectsHashTable];
+    NSHashTable<UIView *> *plainArrows = [NSHashTable weakObjectsHashTable];
+    UIVisualEffectView *owner = nil;
+    CGFloat best = 0;
+    if (hasCandidate && joined.count >= 2) {
+        for (UIVisualEffectView *host in joined) {
+            CGRect r = NGRegion(host, scope);
+            CGFloat area = r.size.width * r.size.height;
+            if (!owner || area > best) { owner = host; best = area; }
+        }
+    }
+    if (owner) {
+        CGRect unionRect = CGRectNull;
+        for (UIVisualEffectView *host in joined) unionRect = CGRectUnion(unionRect, NGRegion(host, scope));
+        unionRect = CGRectIntersection(unionRect, scope.bounds);
+        CGFloat pixel = 1/(scope.window.screen.scale ?: 1);
+        unionRect = CGRectInset(unionRect, -pixel, -pixel);
+        UIImageView *surface = NGImageForHost(owner);
+        if (surface) {
+            UIView *content = owner.contentView;
+            content.clipsToBounds = NO;
+            content.layer.masksToBounds = NO;
+            owner.clipsToBounds = NO;
+            owner.layer.masksToBounds = NO;
+            NGOpenClipping(owner.superview, scope);
+            if (surface.superview != content) [content insertSubview:surface atIndex:0];
+            surface.autoresizingMask = UIViewAutoresizingNone;
+            CGRect frame = [scope convertRect:unionRect toView:content];
+            if (!CGRectEqualToRect(surface.frame, frame)) surface.frame = frame;
+            if (surface.hidden) surface.hidden = NO;
+            NGClearNativeBackdrop(owner);
+            for (UIVisualEffectView *host in joined) {
+                if (host != owner) { NGHideHostImage(host); NGClearNativeBackdrop(host); }
+                UIView *arrow = NGAncestor(host, @"TUICandidateArrowButton");
+                UIView *candidate = NGAncestor(host, @"TUICandidateView");
+                if (!arrow && candidate) arrow = NGViewProperty(candidate, @"arrowButton");
+                if (arrow) [joinedArrows addObject:arrow];
             }
         }
-        BOOL candidate = NO;
-        CGRect joined = CGRectNull;
-        for (UIVisualEffectView *host in group) {
-            candidate |= NGCandidateHost(host);
-            joined = CGRectUnion(joined, NGRegion(host, scope));
-        }
-        if (!candidate || group.count < 2) continue;
-        // Let an enclosing backdrop own its full area first. Nested rounded
-        // button backdrops then cannot cut holes into that continuous surface.
-        [group sortUsingComparator:^NSComparisonResult(UIVisualEffectView *a, UIVisualEffectView *b) {
-            CGRect ar = NGRegion(a, scope), br = NGRegion(b, scope);
-            CGFloat aa=ar.size.width*ar.size.height, ba=br.size.width*br.size.height;
-            return aa>ba ? NSOrderedAscending : (aa<ba ? NSOrderedDescending : NSOrderedSame);
-        }];
-        NSMutableArray<NSValue *> *covered = [NSMutableArray array];
-        for (UIVisualEffectView *host in group) {
-            CGRect region = NGRegion(host, scope);
-            NSArray<NSValue *> *parts = @[[NSValue valueWithCGRect:region]];
-            for (NSValue *cut in covered) parts = NGSubtract(parts, cut.CGRectValue);
-            NGApplyJoined(host, scope, joined, parts);
-            [joinedHosts addObject:host];
-            [covered addObject:[NSValue valueWithCGRect:region]];
-        }
     }
-    NSHashTable<UIView *> *arrows = [NSHashTable weakObjectsHashTable];
-    NSHashTable<UIView *> *joinedArrows = [NSHashTable weakObjectsHashTable];
     for (UIVisualEffectView *host in members) {
-        BOOL isJoined = [joinedHosts containsObject:host];
-        if (!isJoined) NGApplyStandalone(host);
+        if (owner && [joined containsObject:host]) continue;
+        NGApplyStandalone(host);
         UIView *arrow = NGAncestor(host, @"TUICandidateArrowButton");
         UIView *candidate = NGAncestor(host, @"TUICandidateView");
         if (!arrow && candidate) arrow = NGViewProperty(candidate, @"arrowButton");
-        if (arrow) {
-            [arrows addObject:arrow];
-            if (isJoined) [joinedArrows addObject:arrow];
-        }
+        if (arrow) [plainArrows addObject:arrow];
     }
-    for (UIView *arrow in arrows.allObjects) NGArrowBackground(arrow, [joinedArrows containsObject:arrow]);
+    for (UIView *arrow in joinedArrows.allObjects) NGArrowBackground(arrow, YES);
+    for (UIView *arrow in plainArrows.allObjects) NGArrowBackground(arrow, NO);
 }
 
 static void NGMergeAll(void) {
