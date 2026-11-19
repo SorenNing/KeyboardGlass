@@ -121,9 +121,11 @@ static void NGApplyStandalone(UIVisualEffectView *host) {
 }
 
 static BOOL NGCandidateHost(UIVisualEffectView *host) {
-    return NGAncestor(host, @"TUICandidateView") ||
-           NGAncestor(host, @"TUICandidateBackdropView") ||
-           NGAncestor(host, @"TUICandidateArrowButton");
+    for (UIView *current = host; current; current = current.superview) {
+        NSString *name = NSStringFromClass(current.class);
+        if ([name containsString:@"Candidate"]) return YES;
+    }
+    return NO;
 }
 
 static void NGHideHostImage(UIVisualEffectView *host) {
@@ -146,6 +148,8 @@ static void NGHideCandidateChrome(UIVisualEffectView *host) {
     if (backdrop) {
         UIColor *clear = UIColor.clearColor;
         if (![backdrop.backgroundColor isEqual:clear]) backdrop.backgroundColor = clear;
+        backdrop.layer.cornerRadius = 0;
+        backdrop.clipsToBounds = NO;
     }
     if (!candidate) return;
     id border = nil;
