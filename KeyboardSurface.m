@@ -3,6 +3,7 @@
 #import "CandidateAppearance.h"
 #import <objc/runtime.h>
 #import "Material.h"
+#import "SurfaceMaterial.h"
 
 static const void *NGRecordKey = &NGRecordKey;
 static const void *NGStateKey = &NGStateKey;
@@ -36,12 +37,17 @@ static UIView *NGKeyboardAnchor(UIView *view) {
     }
     return view.window;
 }
+static UIColor *NGSurfaceTint(UITraitCollection *traits) {
+    BOOL dark = traits.userInterfaceStyle == UIUserInterfaceStyleDark;
+    return [UIColor colorWithWhite:(dark ? 0.30 : 0.90) alpha:0.94];
+}
+
 static UIImage *NGSurfaceMaterial(void) {
     static UIImage *image;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        NSData *data = [[NSData alloc] initWithBase64EncodedString:NGMaterialBase64 options:0];
-        UIImage *raw = [UIImage imageWithData:data scale:2];
+        NSData *data = [[NSData alloc] initWithBase64EncodedString:NGSurfaceBase64 options:0];
+        UIImage *raw = [[UIImage imageWithData:data scale:2] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
         image = [raw resizableImageWithCapInsets:UIEdgeInsetsMake(14,14,14,14) resizingMode:UIImageResizingModeStretch];
     });
     return image;
@@ -212,6 +218,9 @@ static void NGInsertUnderBackgrounds(UIImageView *image, UIView *parent, NSArray
                 surface.isAccessibilityElement = NO;
                 surface.accessibilityElementsHidden = YES;
                 surface.opaque = NO;
+                surface.tintColor = [UIColor colorWithDynamicProvider:^UIColor *(UITraitCollection *traits) {
+                    return NGSurfaceTint(traits);
+                }];
                 self.surfaces[key] = surface;
             }
             CGRect windowRect = CGRectMake(combined.x,combined.y,combined.w,combined.h);
