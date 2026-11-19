@@ -41,7 +41,7 @@ static UIImage *NGSurfaceMaterial(void) {
     static UIImage *image;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        NSData *data = [[NSData alloc] initWithBase64EncodedString:NGMaterialBase64 options:0];
+        NSData *data = [[NSData alloc] initWithBase64EncodedString:NGSurfaceBase64 options:0];
         UIImage *raw = [UIImage imageWithData:data scale:2];
         image = [raw resizableImageWithCapInsets:UIEdgeInsetsMake(14,14,14,14) resizingMode:UIImageResizingModeStretch];
     });
