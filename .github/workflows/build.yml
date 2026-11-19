@@ -1,23 +1,21 @@
-name: Keyboard Glass Theseus 64e
+name: Keyboard Glass original joined background
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-26-intel
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Compile Theseus keyboard material
+      - name: Build original material with joined candidate background
         shell: bash
         run: |
           set -o pipefail
-          python3 tools/ci_compile.py 2>&1 | tee compile.log
+          python3 tools/build_join.py 2>&1 | tee compile.log
       - name: Upload compiler log
         if: always()
         uses: actions/upload-artifact@v4
@@ -27,6 +25,6 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: keyboard-glass-theseus-64e
+          name: keyboard-glass-original-joined
           path: dist/
           if-no-files-found: error
