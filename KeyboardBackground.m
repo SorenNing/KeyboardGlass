@@ -148,43 +148,51 @@ static BOOL NGKeyboardHost(UIVisualEffectView *host) {
 }
 
 // Candidate bar, expand button and the keyboard below share one continuous
-// surface. The surface is bounded by their own union box, never the screen.
+// surface. Its box is built from the real keyboard view, never from a
+// full-screen backdrop, so nothing is stretched across the screen.
 static void NGMergeScope(UIView *scope) {
     if (!scope || !scope.window || !NGMaterial()) return;
     NSMutableArray<UIVisualEffectView *> *members = [NSMutableArray array];
     NSMutableArray<UIVisualEffectView *> *joined = [NSMutableArray array];
-    BOOL hasCandidate = NO;
+    NSMutableArray<UIVisualEffectView *> *keyboards = [NSMutableArray array];
+    NSMutableArray<UIVisualEffectView *> *candidates = [NSMutableArray array];
     for (UIVisualEffectView *host in NGHosts.allObjects) {
         if (NGScopeForHost(host) != scope) continue;
         [members addObject:host];
         if (!NGVisible(host)) continue;
-        BOOL candidate = NGCandidateHost(host);
-        if (!candidate && !NGKeyboardHost(host)) continue;
-        CGRect region = NGRegion(host, scope);
-        CGRect limit = CGRectInset(scope.bounds, -1, -1);
-        if (!CGRectContainsRect(limit, region)) continue;
-        [joined addObject:host];
-        hasCandidate |= candidate;
+        if (NGCandidateHost(host)) [candidates addObject:host];
+        else if (NGKeyboardHost(host)) [keyboards addObject:host];
+    }
+    CGRect candidateArea = CGRectNull;
+    for (UIVisualEffectView *host in candidates) candidateArea = CGRectUnion(candidateArea, NGRegion(host, scope));
+    CGRect keyboardArea = CGRectNull;
+    for (UIVisualEffectView *host in keyboards) {
+        UIView *kb = NGAncestor(host, @"UIKeyboard") ?: NGAncestor(host, @"UIKeyboardImpl");
+        CGRect r = kb ? [kb convertRect:kb.bounds toView:scope] : NGRegion(host, scope);
+        keyboardArea = CGRectIsNull(keyboardArea) ? r : CGRectUnion(keyboardArea, r);
     }
     NSHashTable<UIView *> *joinedArrows = [NSHashTable weakObjectsHashTable];
     NSHashTable<UIView *> *plainArrows = [NSHashTable weakObjectsHashTable];
     UIVisualEffectView *owner = nil;
-    CGFloat best = 0;
-    if (hasCandidate && joined.count >= 2) {
-        for (UIVisualEffectView *host in joined) {
+    if (!CGRectIsNull(candidateArea) && !CGRectIsNull(keyboardArea)) {
+        CGFloat best = 0;
+        for (UIVisualEffectView *host in keyboards) {
             CGRect r = NGRegion(host, scope);
             CGFloat area = r.size.width * r.size.height;
             if (!owner || area > best) { owner = host; best = area; }
         }
+        [joined addObjectsFromArray:candidates];
+        for (UIVisualEffectView *host in keyboards) {
+            if (CGRectIntersectsRect(NGRegion(host, scope), keyboardArea)) [joined addObject:host];
+        }
     }
     if (owner) {
-        CGRect unionRect = CGRectNull;
-        for (UIVisualEffectView *host in joined) unionRect = CGRectUnion(unionRect, NGRegion(host, scope));
+        CGRect unionRect = CGRectUnion(candidateArea, keyboardArea);
         unionRect = CGRectIntersection(unionRect, scope.bounds);
         CGFloat pixel = 1/(scope.window.screen.scale ?: 1);
         unionRect = CGRectInset(unionRect, -pixel, -pixel);
         UIImageView *surface = NGImageForHost(owner);
-        if (surface) {
+        if (surface && !CGRectIsEmpty(unionRect)) {
             UIView *content = owner.contentView;
             content.clipsToBounds = NO;
             content.layer.masksToBounds = NO;
