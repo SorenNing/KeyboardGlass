@@ -134,6 +134,22 @@ static void NGOpenClipping(UIView *view, UIView *scope) {
     }
 }
 
+static void NGHideCandidateChrome(UIVisualEffectView *host) {
+    UIView *candidate = NGAncestor(host, @"TUICandidateView");
+    UIView *backdrop = NGAncestor(host, @"TUICandidateBackdropView");
+    if (backdrop) {
+        UIColor *clear = UIColor.clearColor;
+        if (![backdrop.backgroundColor isEqual:clear]) backdrop.backgroundColor = clear;
+    }
+    if (!candidate) return;
+    id border = nil;
+    if ([candidate respondsToSelector:NSSelectorFromString(@"roundedBorderLayer")]) {
+        border = ((id (*)(id, SEL))[candidate methodForSelector:NSSelectorFromString(@"roundedBorderLayer")])
+                 (candidate, NSSelectorFromString(@"roundedBorderLayer"));
+    }
+    if ([border isKindOfClass:CALayer.class] && ![border isHidden]) [border setHidden:YES];
+}
+
 static CGRect NGRegion(UIVisualEffectView *host, UIView *scope) {
     CGRect r = [host.contentView convertRect:host.contentView.bounds toView:scope];
     CGFloat scale = scope.window.screen.scale ?: 1;
@@ -162,6 +178,12 @@ static void NGMergeScope(UIView *scope) {
         if (!NGVisible(host)) continue;
         if (NGCandidateHost(host)) [candidates addObject:host];
         else if (NGKeyboardHost(host)) [keyboards addObject:host];
+    }
+    if (!keyboards.count) {
+        for (UIVisualEffectView *host in members) {
+            if ([candidates containsObject:host] || !NGVisible(host)) continue;
+            [keyboards addObject:host];
+        }
     }
     CGRect candidateArea = CGRectNull;
     for (UIVisualEffectView *host in candidates) candidateArea = CGRectUnion(candidateArea, NGRegion(host, scope));
@@ -207,6 +229,7 @@ static void NGMergeScope(UIView *scope) {
             NGClearNativeBackdrop(owner);
             for (UIVisualEffectView *host in joined) {
                 if (host != owner) { NGHideHostImage(host); NGClearNativeBackdrop(host); }
+                if (NGCandidateHost(host)) NGHideCandidateChrome(host);
                 UIView *arrow = NGAncestor(host, @"TUICandidateArrowButton");
                 UIView *candidate = NGAncestor(host, @"TUICandidateView");
                 if (!arrow && candidate) arrow = NGViewProperty(candidate, @"arrowButton");

@@ -2,7 +2,7 @@
 import gzip, hashlib, io, json, pathlib, plistlib, struct, subprocess, tarfile
 P = pathlib.Path(__file__).resolve().parents[1]
 O = P / 'dist'
-VERSION = '0.2.3+join2'
+VERSION = '0.2.4+join3'
 BASE = '82d5fc92f415391a42ae6a20ca5a046dac7221f0'
 
 def run(a):
