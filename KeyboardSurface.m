@@ -56,6 +56,10 @@ BOOL NGSurfaceMaterialAvailable(void) { return NGSurfaceMaterial() != nil; }
 @property(nonatomic,assign) CGFloat nativeAlpha;
 @property(nonatomic,assign) BOOL active;
 @property(nonatomic,assign) BOOL geometryOnly;
+@property(nonatomic,strong) UIVisualEffect *nativeEffect;
+@property(nonatomic,strong) UIColor *nativeColor;
+@property(nonatomic,strong) UIColor *nativeContentColor;
+@property(nonatomic,assign) BOOL savedColors;
 - (void)hideNative;
 - (void)restoreNative;
 @end
@@ -66,16 +70,34 @@ BOOL NGSurfaceMaterialAvailable(void) { return NGSurfaceMaterial() != nil; }
     if (self.geometryOnly) { NGCandidateApply(host,YES); self.active=YES; return; }
     if (!self.active || host.alpha > 0.001) self.nativeAlpha = host.alpha;
     self.active = YES;
-    // These exact background classes have no keycaps or candidate text. Hide
-    // their corner/shadow images as well as their blur; effect=nil alone does
-    // not remove those separate native edges.
-    if (host.alpha != 0) host.alpha = 0;
+    // Keep the native base colour and outer corners. Only the blur layer is
+    // removed, so the keyboard never becomes see-through.
+    if ([host isKindOfClass:UIVisualEffectView.class]) {
+        UIVisualEffectView *effectView = (UIVisualEffectView *)host;
+        if (!self.savedColors) {
+            self.nativeEffect = effectView.effect;
+            self.nativeColor = host.backgroundColor;
+            self.nativeContentColor = effectView.contentView.backgroundColor;
+            self.savedColors = YES;
+        }
+        if (effectView.effect) effectView.effect = nil;
+        UIColor *clear = UIColor.clearColor;
+        if (![host.backgroundColor isEqual:clear]) host.backgroundColor = clear;
+        if (![effectView.contentView.backgroundColor isEqual:clear]) effectView.contentView.backgroundColor = clear;
+    }
 }
 - (void)restoreNative {
     UIView *host = self.host;
     if (!self.active) return;
     self.active = NO;
     if (self.geometryOnly) { NGCandidateApply(host,NO); return; }
+    if (host && [host isKindOfClass:UIVisualEffectView.class] && self.savedColors) {
+        UIVisualEffectView *effectView = (UIVisualEffectView *)host;
+        effectView.effect = self.nativeEffect;
+        host.backgroundColor = self.nativeColor;
+        effectView.contentView.backgroundColor = self.nativeContentColor;
+        self.savedColors = NO;
+    }
     if (host && host.alpha == 0) host.alpha = self.nativeAlpha;
 }
 @end
