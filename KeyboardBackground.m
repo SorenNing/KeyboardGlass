@@ -43,6 +43,12 @@ static void NGArrowBackground(UIView *arrow, BOOL joined) {
     UIView *background = NGViewProperty(arrow, @"backgroundView");
     UIView *highlight = NGViewProperty(arrow, @"highlightBackgroundView");
     UIView *backdrop = NGViewProperty(arrow, @"backdropView");
+    if (joined && backdrop && backdrop != arrow) {
+        UIColor *clear = UIColor.clearColor;
+        if (![backdrop.backgroundColor isEqual:clear]) backdrop.backgroundColor = clear;
+        backdrop.layer.cornerRadius = 0;
+        backdrop.clipsToBounds = NO;
+    }
     if (!background || background == arrow || background == highlight || background == backdrop) return;
     id saved = objc_getAssociatedObject(background, NGArrowColorKey);
     if (joined) {
