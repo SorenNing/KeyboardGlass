@@ -2,7 +2,7 @@
 import gzip, hashlib, io, json, pathlib, plistlib, struct, subprocess, tarfile
 P = pathlib.Path(__file__).resolve().parents[1]
 O = P / 'dist'
-VERSION = '0.2.6+join5'
+VERSION = '0.3.1+join7'
 BASE = '82d5fc92f415391a42ae6a20ca5a046dac7221f0'
 
 def run(a):
@@ -49,7 +49,7 @@ def main():
         rel = prefix + 'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass'
         run(['xcrun', '--sdk', 'iphoneos', 'clang', '-target', arch+'-apple-ios15.0',
              '-isysroot', sdk, '-dynamiclib', '-fobjc-arc', '-fblocks', '-O2', '-Wall', '-Wextra', '-Werror',
-             'KeyboardBackground.m', '-framework', 'UIKit', '-framework', 'Foundation',
+             'KeyboardBackground.m', 'KeyboardSurface.m', 'CandidateAppearance.m', '-framework', 'UIKit', '-framework', 'Foundation',
              '-framework', 'CoreGraphics', '-framework', 'QuartzCore',
              '-install_name', '/'+rel+'.dylib', '-o', str(lib)])
         run(['codesign', '--force', '--sign', '-', str(lib)])
