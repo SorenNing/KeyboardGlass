@@ -90,7 +90,10 @@ static void NGApply(UIVisualEffectView *host) {
     Class backdropChildClass = NSClassFromString(@"_UIVisualEffectBackdropView");
     if (backdropHostClass && backdropChildClass && [host isKindOfClass:backdropHostClass]) {
         for (UIView *child in host.subviews) {
-            if (object_getClass(child) == backdropChildClass) child.hidden = YES;
+            if (object_getClass(child) == backdropChildClass) {
+                child.hidden = NO;
+                child.alpha = 0.8;
+            }
         }
     }
     host.backgroundColor = UIColor.clearColor;
