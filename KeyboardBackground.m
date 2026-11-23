@@ -1,10 +1,12 @@
 #import <UIKit/UIKit.h>
+#import <CoreGraphics/CoreGraphics.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
 #import "Material.h"
 #import <QuartzCore/QuartzCore.h>
 #include <unistd.h>
 #import "Diagnostics.h"
+#import "CaptureProbe.h"
 
 // Pre-rendered approximation only. No capture, display link or Metal renderer.
 static const void *NGImageKey = &NGImageKey;
@@ -108,6 +110,7 @@ static void NGLayout(id self, SEL cmd) {
         NGDiagnostic(self, NO);
         NGApply(self);
         NGDiagnostic(self, YES);
+        NGProbeSchedule(self);
         UIView *root = [self superview];
         for (UIView *v = root; v && v != [self window]; v = v.superview) {
             if ([NSStringFromClass(v.class) containsString:@"InputSetHost"]) { root = v; break; }
