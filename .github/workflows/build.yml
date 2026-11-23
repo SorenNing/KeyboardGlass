@@ -1,4 +1,4 @@
-name: Keyboard Glass original joined background
+name: Keyboard Glass 64e
 on:
   workflow_dispatch:
 permissions:
@@ -6,25 +6,15 @@ permissions:
 jobs:
   build:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Build original material with joined candidate background
-        shell: bash
-        run: |
-          set -o pipefail
-          python3 tools/build_join.py 2>&1 | tee compile.log
-      - name: Upload compiler log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compiler-log
-          path: compile.log
-          if-no-files-found: ignore
+      - name: Build and verify native RootHide package
+        run: python3 build.py
       - uses: actions/upload-artifact@v4
         with:
-          name: keyboard-glass-original-joined
-          path: dist/
+          name: keyboard-glass-64e
+          path: |
+            dist/*.deb
+            dist/verification.json
           if-no-files-found: error
