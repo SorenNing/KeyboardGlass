@@ -85,6 +85,14 @@ static void NGApply(UIVisualEffectView *host) {
     clip.frame = host.contentView.bounds;
     view.frame = [clip convertRect:NGJoinedRect(host) fromView:host.window];
     if (host.effect) host.effect = nil;
+    // Single-variable test: only the direct system backdrop child.
+    Class backdropHostClass = NSClassFromString(@"UIKBBackdropView");
+    Class backdropChildClass = NSClassFromString(@"_UIVisualEffectBackdropView");
+    if (backdropHostClass && backdropChildClass && [host isKindOfClass:backdropHostClass]) {
+        for (UIView *child in host.subviews) {
+            if (object_getClass(child) == backdropChildClass) child.hidden = YES;
+        }
+    }
     host.backgroundColor = UIColor.clearColor;
     host.contentView.backgroundColor = UIColor.clearColor;
 }
