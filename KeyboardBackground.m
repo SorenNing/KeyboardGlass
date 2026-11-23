@@ -15,20 +15,72 @@ static UIImage *NGMaterial(void) {
     });
     return image;
 }
+// Group only directly connected, aligned keyboard backdrops in the same host.
+// Each region crops the same original image; no material or key views change.
+static const void *NGClipKey = &NGClipKey;
+static BOOL NGUpdating = NO;
+static void NGCollect(UIView *root, NSMutableArray<UIVisualEffectView *> *out, NSUInteger depth) {
+    if (!root || depth > 12 || root.hidden || root.alpha <= 0.0) return;
+    if ([NSStringFromClass(root.class) containsString:@"KeyboardDock"]) return;
+    Class backdrop = NSClassFromString(@"UIKBBackdropView");
+    if (backdrop && [root isKindOfClass:backdrop]) {
+        if (root.window && !CGRectIsEmpty(root.bounds)) [out addObject:(UIVisualEffectView *)root];
+        return;
+    }
+    for (UIView *child in root.subviews) NGCollect(child, out, depth + 1);
+}
+static CGRect NGJoinedRect(UIVisualEffectView *host) {
+    UIView *root = host.superview;
+    for (UIView *v = root; v && v != host.window; v = v.superview) {
+        NSString *name = NSStringFromClass(v.class);
+        if ([name containsString:@"InputSetHost"]) { root = v; break; }
+        if ([name containsString:@"KeyboardDock"]) break;
+        if ([name containsString:@"InputSetContainer"]) break;
+    }
+    if (!root) return [host convertRect:host.bounds toView:host.window];
+    NSMutableArray<UIVisualEffectView *> *all = [NSMutableArray array];
+    NGCollect(root, all, 0);
+    CGRect joined = [host convertRect:host.bounds toView:host.window];
+    for (NSUInteger pass = 0; pass < all.count; pass++) {
+        BOOL changed = NO;
+        for (UIVisualEffectView *other in all) {
+            if (other.window != host.window) continue;
+            CGRect r = [other convertRect:other.bounds toView:host.window];
+            if (fabs(CGRectGetMinX(r) - CGRectGetMinX(joined)) > 3.0 ||
+                fabs(CGRectGetWidth(r) - CGRectGetWidth(joined)) > 3.0) continue;
+            if (CGRectGetMinY(r) > CGRectGetMaxY(joined) + 2.0 ||
+                CGRectGetMaxY(r) < CGRectGetMinY(joined) - 2.0) continue;
+            CGRect next = CGRectUnion(joined, r);
+            if (!CGRectEqualToRect(next, joined)) { joined = next; changed = YES; }
+        }
+        if (!changed) break;
+    }
+    return joined;
+}
 static void NGApply(UIVisualEffectView *host) {
     if (!host.window || CGRectIsEmpty(host.bounds)) return;
     UIImage *material = NGMaterial();
     if (!material) return; // Do not remove native background if asset fails.
+    UIView *clip = objc_getAssociatedObject(host, NGClipKey);
+    if (!clip) {
+        clip = [[UIView alloc] initWithFrame:host.contentView.bounds];
+        clip.userInteractionEnabled = NO;
+        clip.isAccessibilityElement = NO;
+        clip.backgroundColor = UIColor.clearColor;
+        clip.clipsToBounds = YES;
+        [host.contentView insertSubview:clip atIndex:0];
+        objc_setAssociatedObject(host, NGClipKey, clip, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     UIImageView *view = objc_getAssociatedObject(host, NGImageKey);
     if (!view) {
         view = [[UIImageView alloc] initWithImage:material];
         view.userInteractionEnabled = NO;
         view.isAccessibilityElement = NO;
-        view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [host.contentView insertSubview:view atIndex:0];
+        [clip addSubview:view];
         objc_setAssociatedObject(host, NGImageKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    view.frame = host.contentView.bounds;
+    clip.frame = host.contentView.bounds;
+    view.frame = [clip convertRect:NGJoinedRect(host) fromView:host.window];
     if (host.effect) host.effect = nil;
     host.backgroundColor = UIColor.clearColor;
     host.contentView.backgroundColor = UIColor.clearColor;
@@ -36,7 +88,19 @@ static void NGApply(UIVisualEffectView *host) {
 static void (*NGOriginalLayout)(id,SEL);
 static void NGLayout(id self, SEL cmd) {
     NGOriginalLayout(self,cmd);
-    NGApply(self);
+    if (NGUpdating) return;
+    NGUpdating = YES;
+    @try {
+        NGApply(self);
+        UIView *root = [self superview];
+        for (UIView *v = root; v && v != [self window]; v = v.superview) {
+            if ([NSStringFromClass(v.class) containsString:@"InputSetHost"]) { root = v; break; }
+            if ([NSStringFromClass(v.class) containsString:@"KeyboardDock"]) break;
+        }
+        NSMutableArray<UIVisualEffectView *> *all = [NSMutableArray array];
+        NGCollect(root, all, 0);
+        for (UIVisualEffectView *other in all) if (other != self) NGApply(other);
+    } @finally { NGUpdating = NO; }
 }
 static BOOL NGHasVoidMethod(Class cls, SEL selector) {
     Method m=class_getInstanceMethod(cls,selector);
