@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <objc/message.h>
 #import <dlfcn.h>
 #import "Material.h"
 #import "GlassRenderer.h"
@@ -26,6 +27,8 @@ static NSDictionary *NGValues;
 static NSString *NGSkin;
 static CGFloat NGSystemAlpha = 1.0;
 static BOOL NGHideCandidateControls;
+static BOOL NGHideCandidateHighlight;
+static void NGRefreshCandidateHighlight(void);
 static BOOL NGMaterialBlurEnabled;
 static CGFloat NGMaterialBlurStrength=0.5;
 static void NGRefreshCandidateControls(void);
@@ -47,7 +50,10 @@ static void NGReadPrefs(void) {
     id blur=NGCopyPreference(@"MaterialBlurEnabled");
     NGMaterialBlurEnabled=[blur isKindOfClass:NSNumber.class] && [blur boolValue];
     NGMaterialBlurStrength=NGNumber(NGCopyPreference(@"MaterialBlurStrength"),0.5,0,1);
+    id highlight=NGCopyPreference(@"HideCandidateHighlight");
+    NGHideCandidateHighlight=[highlight isKindOfClass:NSNumber.class] && [highlight boolValue];
     NGRefreshCandidateControls();
+    NGRefreshCandidateHighlight();
     NGCachedMaterial = nil;
     NGCachedOutline = nil;
     NSString *summary=[NSString stringWithFormat:@"[KeyboardGlass Prefs] bundle=%@ source=%@ skin=%@ alpha=%.4f radius=%.3f shape=%.3f sandboxProfile=%ld readError=%@\n",
@@ -273,7 +279,10 @@ static BOOL NGHasVoidMethod(Class cls, SEL selector) {
     free(type);
     return ok;
 }
+#import "CandidateHighlight.h"
+
 static void NGInstallCandidateHooks(void) {
+    NGInstallCandidateHighlightHooks();
     typedef void (*CandidateHook)(Class,SEL,IMP,IMP *);
     CandidateHook hook=(CandidateHook)dlsym(RTLD_DEFAULT,"MSHookMessageEx");
     if (!hook) return;

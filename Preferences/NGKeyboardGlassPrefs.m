@@ -68,7 +68,7 @@
     CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
     NSString *key = [specifier propertyForKey:@"key"];
     if (NGLimits()[key]) return NGEffectiveValues(NGSelectedSkin())[key];
-    if ([key isEqual:@"HideCandidateControls"] || [key isEqual:@"MaterialBlurEnabled"]) {
+    if ([key isEqual:@"HideCandidateControls"] || [key isEqual:@"HideCandidateHighlight"] || [key isEqual:@"MaterialBlurEnabled"]) {
         id value=NGCopyPreference(key);
         return @([value isKindOfClass:NSNumber.class] && [value boolValue]);
     }
@@ -149,7 +149,7 @@
         CFPreferencesSetAppValue(CFSTR("Overrides"), (__bridge CFPropertyListRef)all, (__bridge CFStringRef)NGDomain);
     } else if ([key isEqual:@"Skin"] && [NGSkinIDs() containsObject:value]) {
         CFPreferencesSetAppValue(CFSTR("Skin"), (__bridge CFPropertyListRef)value, (__bridge CFStringRef)NGDomain);
-    } else if ([key isEqual:@"HideCandidateControls"] || [key isEqual:@"MaterialBlurEnabled"]) {
+    } else if ([key isEqual:@"HideCandidateControls"] || [key isEqual:@"HideCandidateHighlight"] || [key isEqual:@"MaterialBlurEnabled"]) {
         if (![value isKindOfClass:NSNumber.class]) return;
         CFPreferencesSetAppValue((__bridge CFStringRef)key, (__bridge CFNumberRef)@([value boolValue]), (__bridge CFStringRef)NGDomain);
     } else if ([key isEqual:@"MaterialBlurStrength"]) {
@@ -171,7 +171,7 @@
     [self changed]; [self ngRebuildSpecifierState];
 }
 - (void)resetAll {
-    for (NSString *key in @[@"Skin",@"Overrides",@"SystemAlpha",@"HideCandidateControls",@"MaterialBlurEnabled",@"MaterialBlurStrength",@"BlurEnabled",@"BlurStrength"]) {
+    for (NSString *key in @[@"Skin",@"Overrides",@"SystemAlpha",@"HideCandidateControls",@"HideCandidateHighlight",@"MaterialBlurEnabled",@"MaterialBlurStrength",@"BlurEnabled",@"BlurStrength"]) {
         CFPreferencesSetAppValue((__bridge CFStringRef)key, NULL, (__bridge CFStringRef)NGDomain);
     }
     [self changed]; [self ngRebuildSpecifierState];

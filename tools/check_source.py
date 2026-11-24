@@ -28,11 +28,13 @@ assert next(x for x in sliders if x['key']=='SystemAlpha')['default']==1
 choices=next(x for x in root if x['cell']=='PSLinkListCell');assert len(choices['validValues'])==7
 switches=[x for x in root if x['cell']=='PSSwitchCell' and x.get('key')=='HideCandidateControls']
 assert len(switches)==1 and switches[0]['default'] is False
-assert len(root)==49 and sum(x['cell']=='PSGroupCell' for x in root)==27
+assert len(root)==50 and sum(x['cell']=='PSGroupCell' for x in root)==27
 blur=next(x for x in root if x.get('key')=='MaterialBlurEnabled')
 strength=next(x for x in sliders if x['key']=='MaterialBlurStrength')
 assert blur['cell']=='PSSwitchCell' and blur['default'] is False
 assert strength['default']==0.5 and strength['min']==0 and strength['max']==1
+highlight=next(x for x in root if x.get('key')=='HideCandidateHighlight')
+assert highlight['cell']=='PSSwitchCell' and highlight['default'] is False
 renderer=(P/'GlassRenderer.h').read_text();model=(P/'GlassPreferences.h').read_text()
 for key in keys:
  assert key in model or key in ('SystemAlpha','MaterialBlurStrength')
@@ -52,6 +54,9 @@ code='#include <math.h>\n#include <assert.h>\n'+s+'''\nint main(void) {
  double r=0,g=0,b=0,a=0;
  NGOver(&r,&g,&b,&a,1,0,0,.5);assert(fabs(r-.5)<1e-6&&a==.5);
  NGOver(&r,&g,&b,&a,0,1,0,.5);assert(fabs(a-.75)<1e-6&&r<=a&&g<=a&&b<=a);
+ NGGlassRasterValues material={.radius=14,.shape=2.8,.red=1,.green=1,.blue=1,.opacity=.1,.softness=.4};
+ double color[4];NGGlassSample(material,64,64,3,color);
+ assert(fabs(color[3]-.1)<1e-6 && color[0]<=color[3]);
  return 0;
 }
 '''

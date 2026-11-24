@@ -48,23 +48,23 @@ int main(int argc,const char *argv[]) {
   NSCAssert(argc==2,@"root argument required");
   NSDictionary *root=[NSDictionary dictionaryWithContentsOfFile:[NSString stringWithUTF8String:argv[1]]];
   NGCacheTest *controller=[NGCacheTest new];controller.rows=root[@"items"];
-  NSCAssert(controller.rows.count==49,@"input rows missing");
-  NSCAssert(controller.specifiers.count==49,@"getter missing rows");
-  NSCAssert(controller.stored.count==49,@"superclass storage not initialized");
+  NSCAssert(controller.rows.count==50,@"input rows missing");
+  NSCAssert(controller.specifiers.count==50,@"getter missing rows");
+  NSCAssert(controller.stored.count==50,@"superclass storage not initialized");
   NSCAssert(controller.numberOfGroups==27,@"group state missing");
-  NSCAssert(controller.specifiers.count==49 && controller.loads==1,@"cache did not stick");
+  NSCAssert(controller.specifiers.count==50 && controller.loads==1,@"cache did not stick");
   controller.ngSpecifiers=nil;
-  NSCAssert(controller.specifiers.count==49 && controller.loads==2,@"reload did not repopulate");
+  NSCAssert(controller.specifiers.count==50 && controller.loads==2,@"reload did not repopulate");
   NSCAssert(!controller.ngLoading,@"reentry guard stuck");
   [controller setSpecifiers:nil];
   NSCAssert(controller.ngSpecifiers==nil && controller.stored==nil,@"framework invalidation not mirrored");
-  NSCAssert(controller.specifiers.count==49 && controller.loads==3,@"resume getter did not reload");
+  NSCAssert(controller.specifiers.count==50 && controller.loads==3,@"resume getter did not reload");
   for (int cycle=0;cycle<10;cycle++) {
    [controller ngRebuildSpecifierState];
-   NSCAssert(controller.stored.count==49 && controller.numberOfGroups==27,@"foreground rebuild blank");
+   NSCAssert(controller.stored.count==50 && controller.numberOfGroups==27,@"foreground rebuild blank");
   }
   NSCAssert(controller.loads==13 && !controller.ngLoading,@"foreground reentry or duplicate loads");
-  NSLog(@"PASS: production getter caches 49 rows, synchronizes 27 groups, handles setter reentry and reload. Framework stand-in; not UIKit validation.");
+  NSLog(@"PASS: production getter caches 50 rows, synchronizes 27 groups, handles setter reentry and reload. Framework stand-in; not UIKit validation.");
  }
  return 0;
 }

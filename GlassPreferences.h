@@ -79,6 +79,7 @@ static inline NSDictionary *NGValidateSnapshot(id envelope) {
         ![config[@"Overrides"] isKindOfClass:NSDictionary.class]) return nil;
     // Optional for compatibility with snapshots published by 0.1.16 and earlier.
     if (config[@"HideCandidateControls"] && ![config[@"HideCandidateControls"] isKindOfClass:NSNumber.class]) return nil;
+    if (config[@"HideCandidateHighlight"] && ![config[@"HideCandidateHighlight"] isKindOfClass:NSNumber.class]) return nil;
     if (config[@"MaterialBlurEnabled"] && ![config[@"MaterialBlurEnabled"] isKindOfClass:NSNumber.class]) return nil;
     if (config[@"MaterialBlurStrength"] && (![config[@"MaterialBlurStrength"] isKindOfClass:NSNumber.class] ||
         !isfinite([config[@"MaterialBlurStrength"] doubleValue]) || [config[@"MaterialBlurStrength"] doubleValue]<0 ||
@@ -137,10 +138,12 @@ static inline BOOL NGPublishGlobalSnapshot(NSError **error) {
     id alpha=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("SystemAlpha"),(__bridge CFStringRef)NGDomain));
     id overrides=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Overrides"),(__bridge CFStringRef)NGDomain));
     id hide=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("HideCandidateControls"),(__bridge CFStringRef)NGDomain));
+    id highlight=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("HideCandidateHighlight"),(__bridge CFStringRef)NGDomain));
     id blur=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("MaterialBlurEnabled"),(__bridge CFStringRef)NGDomain));
     id strength=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("MaterialBlurStrength"),(__bridge CFStringRef)NGDomain));
     NSDictionary *config=@{@"MaterialBlurEnabled":@([blur isKindOfClass:NSNumber.class] && [blur boolValue]),
         @"MaterialBlurStrength":@(NGNumber(strength,0.5,0,1)),@"Skin":[NGSkinIDs() containsObject:skin] ? skin : @"default",
+        @"HideCandidateHighlight":@([highlight isKindOfClass:NSNumber.class] && [highlight boolValue]),
         @"HideCandidateControls":@([hide isKindOfClass:NSNumber.class] && [hide boolValue]),
         @"SystemAlpha":@(NGNumber(alpha,1,0,1)),
         @"Overrides":[overrides isKindOfClass:NSDictionary.class] ? overrides : @{}};

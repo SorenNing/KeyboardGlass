@@ -14,6 +14,7 @@ int main(int argc,const char *argv[]) {
   if([mode isEqual:@"produce"]) {
    CFPreferencesSetAppValue(CFSTR("Skin"),CFSTR("clear"),(__bridge CFStringRef)NGDomain);
    CFPreferencesSetAppValue(CFSTR("HideCandidateControls"),kCFBooleanTrue,(__bridge CFStringRef)NGDomain);
+   CFPreferencesSetAppValue(CFSTR("HideCandidateHighlight"),kCFBooleanTrue,(__bridge CFStringRef)NGDomain);
    CFPreferencesSetAppValue(CFSTR("MaterialBlurEnabled"),kCFBooleanTrue,(__bridge CFStringRef)NGDomain);
    CFPreferencesSetAppValue(CFSTR("MaterialBlurStrength"),(__bridge CFNumberRef)@0.65,(__bridge CFStringRef)NGDomain);
    CFPreferencesSetAppValue(CFSTR("SystemAlpha"),(__bridge CFNumberRef)@0.42,(__bridge CFStringRef)NGDomain);
@@ -33,6 +34,7 @@ int main(int argc,const char *argv[]) {
    NSCAssert(NGLoadGlobalSnapshot(),@"snapshot unavailable");
    NSCAssert([NGSelectedSkin() isEqual:@"clear"],@"skin not shared");
    NSCAssert([NGCopyPreference(@"HideCandidateControls") boolValue],@"candidate toggle not shared");
+   NSCAssert([NGCopyPreference(@"HideCandidateHighlight") boolValue],@"highlight toggle not shared");
    NSCAssert([NGCopyPreference(@"MaterialBlurEnabled") boolValue],@"blur toggle not shared");
    NSCAssert(fabs([NGCopyPreference(@"MaterialBlurStrength") doubleValue]-.65)<1e-6,@"blur strength not shared");
    NSCAssert((NGValidateSnapshot(@{@"Schema":@1,@"Configuration":@{@"Skin":@"clear",@"SystemAlpha":@1,@"Overrides":@{},@"MaterialBlurStrength":@2}})==nil),@"invalid blur strength accepted");

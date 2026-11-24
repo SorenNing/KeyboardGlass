@@ -1,4 +1,6 @@
-# KeyboardGlass 0.2.3
+# KeyboardGlass 0.2.4
+
+Optional `隐藏候选词高亮底框` defaults to off and is independent of hiding the candidate arrow/separator. The candidate base cell background painter receives nil image/clear color only for TUICandidateCell instances; the grid's dedicated selectedRowHighlightView is hidden only when owned by that grid. Selection, candidate text/color, hit testing and layout are preserved. Disabling requests the current native repaint rather than restoring a reused cell's stale image. Each hook checks its ABI and has an independent install-once guard. SDK16 exports and public iOS17 runtime headers support these target interfaces; appearance on either device still requires testing. The 0.2.3 edge fixes are included.
 
 Target: iOS 16.0+ (iOS 16/17), normal rootless arm64 and RootHide arm64e. Author: Ning. Runtime validation on iOS 16 devices is pending; SDK/API and package compatibility are checked separately.
 

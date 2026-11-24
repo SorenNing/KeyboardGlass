@@ -78,6 +78,22 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>label</key>
+			<string>隐藏候选词高亮底框</string>
+			<key>key</key>
+			<string>HideCandidateHighlight</string>
+			<key>defaults</key>
+			<string>com.ning.keyboardglass</string>
+			<key>default</key>
+			<false/>
+			<key>get</key>
+			<string>readPreferenceValue:</string>
+			<key>set</key>
+			<string>setPreferenceValue:specifier:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>系统背景</string>
