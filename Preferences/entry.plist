@@ -6,6 +6,8 @@
 	<dict>
 		<key>bundle</key>
 		<string>KeyboardGlassPrefs</string>
+		<key>isController</key>
+		<true/>
 		<key>cell</key>
 		<string>PSLinkCell</string>
 		<key>detail</key>

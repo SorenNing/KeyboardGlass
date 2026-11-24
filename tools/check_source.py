@@ -1,5 +1,11 @@
 import pathlib,plistlib,re,subprocess,tempfile
 P=pathlib.Path(__file__).resolve().parents[1]
+entry=plistlib.loads((P/'Preferences/entry.plist').read_bytes())['entry']
+info=plistlib.loads((P/'Preferences/Info.plist').read_bytes())
+assert entry.get('isController') is True, 'PreferenceLoader controller entry must enable lazy bundle loading'
+assert entry['cell']=='PSLinkCell' and entry['bundle']=='KeyboardGlassPrefs'
+assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
+assert info['CFBundleExecutable']=='KeyboardGlassPrefs'
 root=plistlib.loads((P/'Preferences/Root.plist').read_bytes())['items']
 sliders=[x for x in root if x['cell']=='PSSliderCell'];assert len(sliders)==16
 keys=[x['key'] for x in sliders];assert len(keys)==len(set(keys))
