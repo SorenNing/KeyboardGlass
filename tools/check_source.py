@@ -6,6 +6,9 @@ assert entry.get('isController') is True, 'PreferenceLoader controller entry mus
 assert entry['cell']=='PSLinkCell' and entry['bundle']=='KeyboardGlassPrefs'
 assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
 assert info['CFBundleExecutable']=='KeyboardGlassPrefs'
+policy=plistlib.loads((P/'Resources/KeyboardGlass_ReadConfig.plist').read_bytes())
+assert policy['AllowedProcesses']==['*'], 'Configuration access must cover all host Apps'
+assert policy['Extensions']==[{'type':'file','extension_class':'com.apple.app-sandbox.read','path':'/rootfs/var/mobile/Library/Accessibility/KeyboardGlass-preferences.plist'}], 'Grant read-only access to the exact host file on RootHide'
 root=plistlib.loads((P/'Preferences/Root.plist').read_bytes())['items']
 sliders=[x for x in root if x['cell']=='PSSliderCell'];assert len(sliders)==16
 keys=[x['key'] for x in sliders];assert len(keys)==len(set(keys))

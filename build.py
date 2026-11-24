@@ -8,9 +8,14 @@ run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysr
 run(['codesign','--force','--sign','-',str(f)])
 run(['codesign','--verify','--strict','--all-architectures',str(f)])
 b=f.read_bytes(); assert struct.unpack_from('<I',b,8)[0]==0x80000002
-control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.1.15\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nDepends: firmware (>= 17.0), mobilesubstrate, preferenceloader\nDescription: Keyboard glass presets and adjustable static material with system background opacity control.\n'
+control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.1.16\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nDepends: firmware (>= 17.0), mobilesubstrate, preferenceloader, com.opa334.libsandy\nDescription: Keyboard glass presets and adjustable static material with system background opacity control.\n'
 flt=plistlib.dumps({'Filter':{'Bundles':['com.apple.UIKit']}})
 files={'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib':b,'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.plist':flt}
+profile=(P/'Resources/KeyboardGlass_ReadConfig.plist').read_bytes()
+policy=plistlib.loads(profile)
+assert policy['AllowedProcesses']==['*']
+assert policy['Extensions']==[{'type':'file','extension_class':'com.apple.app-sandbox.read','path':'/rootfs/var/mobile/Library/Accessibility/KeyboardGlass-preferences.plist'}]
+files['Library/libSandy/KeyboardGlass_ReadConfig.plist']=profile
 # Preferences uses runtime symbols from the Settings process. No SDK-private framework link.
 prefs=O/'KeyboardGlassPrefs'
 run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysroot',sdk,
@@ -45,15 +50,18 @@ for name,data in parts.items():
  h=f'{name+"/":<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(data):<10}`\n'.encode();assert len(h)==60
  out+=h+data
  if len(data)%2:out+=b'\n'
-deb=O/'com.ning.keyboardglass_0.1.15_iphoneos-arm64e.deb';deb.write_bytes(out)
+deb=O/'com.ning.keyboardglass_0.1.16_iphoneos-arm64e.deb';deb.write_bytes(out)
 # Verify bytes in final package, not only pre-package library.
 with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
+ profileMember=t.getmember('./Library/libSandy/KeyboardGlass_ReadConfig.plist')
+ assert profileMember.uid==0 and profileMember.gid==0 and profileMember.mode==0o644
+ assert plistlib.loads(t.extractfile(profileMember).read())==policy
  entry=plistlib.loads(t.extractfile('./Library/PreferenceLoader/Preferences/KeyboardGlass.plist').read())['entry']
  info=plistlib.loads(t.extractfile('./'+bundle+'Info.plist').read())
  assert entry.get('isController') is True
  assert entry['bundle']=='KeyboardGlassPrefs' and entry['cell']=='PSLinkCell'
  assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
- assert info['CFBundleVersion']=='0.1.15'
+ assert info['CFBundleVersion']=='0.1.16'
  actual=t.extractfile('./Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib').read()
  assert actual==b
  check=O/'extracted.dylib';check.write_bytes(actual)

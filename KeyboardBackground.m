@@ -39,12 +39,16 @@ static void NGReadPrefs(void) {
     NGSystemAlpha = NGNumber(NGCopyPreference(@"SystemAlpha"), 1, 0, 1);
     NGCachedMaterial = nil;
     NGCachedOutline = nil;
-    NSString *summary=[NSString stringWithFormat:@"[KeyboardGlass Prefs] bundle=%@ source=%@ skin=%@ alpha=%.4f radius=%.3f shape=%.3f\n",
+    NSString *summary=[NSString stringWithFormat:@"[KeyboardGlass Prefs] bundle=%@ source=%@ skin=%@ alpha=%.4f radius=%.3f shape=%.3f sandboxProfile=%ld readError=%@\n",
         NSBundle.mainBundle.bundleIdentifier, NGGlobalSnapshot ? @"global-snapshot" : @"CFPreferences-fallback", NGSkin, NGSystemAlpha,
-        [NGValues[@"CornerRadius"] doubleValue],[NGValues[@"CornerShape"] doubleValue]];
+        [NGValues[@"CornerRadius"] doubleValue],[NGValues[@"CornerShape"] doubleValue],(long)NGConfigAccessStatus,NGConfigReadError ?: @"none"];
     NSLog(@"%@",summary);
-    NSString *log=[NSString stringWithFormat:@"/var/mobile/Library/Accessibility/KeyboardGlass-prefs-%d.log",(int)getpid()];
-    [summary writeToFile:log atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    NSString *name=[NSString stringWithFormat:@"KeyboardGlass-prefs-%d.log",(int)getpid()];
+    NSString *log=[@"/var/mobile/Library/Accessibility" stringByAppendingPathComponent:name];
+    if (![summary writeToFile:log atomically:YES encoding:NSUTF8StringEncoding error:nil]) {
+        log=[[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches"] stringByAppendingPathComponent:name];
+        [summary writeToFile:log atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    }
 }
 static UIImage *NGMaterial(void) {
     if (!NGValues || CACurrentMediaTime()-NGLastPreferenceCheck>1.0) NGReadPrefs();

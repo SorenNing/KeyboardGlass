@@ -29,6 +29,10 @@ int main(int argc,const char *argv[]) {
    NSCAssert([NGSelectedSkin() isEqual:@"clear"],@"lost last good config");
    NSCAssert(!NGValidateSnapshot(@{@"Schema":@1,@"Configuration":@{@"Skin":@"clear",@"SystemAlpha":@2,@"Overrides":@{}}}),@"range validation failed");
    NSCAssert(NGNumber(@(NAN),1,0,1)==1,@"NaN accepted");
+   NSCAssert([NSFileManager.defaultManager removeItemAtPath:NGSnapshotPath error:nil],@"missing-file fixture failed");
+   NSCAssert(!NGLoadGlobalSnapshot(),@"missing file accepted");
+   NSCAssert(NGConfigReadError.length>0,@"read failure was not diagnosed");
+   NSCAssert([NGSelectedSkin() isEqual:@"clear"],@"read failure lost last good config");
   } else return 3;
  }
  return 0;

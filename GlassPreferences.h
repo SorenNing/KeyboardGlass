@@ -1,6 +1,38 @@
 #import <Foundation/Foundation.h>
 #import <CoreFoundation/CoreFoundation.h>
 #include <math.h>
+#import <dlfcn.h>
+
+// Grants read access to this tweak's configuration only; never to App data.
+static NSInteger NGConfigAccessStatus = -1;
+static NSString *NGConfigReadError;
+static inline int NGAcquireConfigReadAccess(void) {
+    typedef int (*ApplyProfile)(const char *);
+    static ApplyProfile apply;
+    static void *handle;
+    if (!apply) apply=(ApplyProfile)dlsym(RTLD_DEFAULT,"libSandy_applyProfile");
+    if (!apply) {
+        Dl_info info={0};
+        NSString *root=nil;
+        if (dladdr((const void *)&NGAcquireConfigReadAccess,&info) && info.dli_fname) {
+            NSString *library=[NSString stringWithUTF8String:info.dli_fname];
+            for (NSString *suffix in @[@"/Library/MobileSubstrate/DynamicLibraries/", @"/usr/lib/TweakInject/"]) {
+                NSRange range=[library rangeOfString:suffix options:NSBackwardsSearch];
+                if (range.location!=NSNotFound) { root=[library substringToIndex:range.location]; break; }
+            }
+        }
+        // Derive the active RootHide prefix from this injected library, not a
+        // hardcoded .jbroot UUID or an App-specific container path.
+        if (root) {
+            NSString *path=[root stringByAppendingString:@"/usr/lib/libsandy.dylib"];
+            handle=dlopen(path.fileSystemRepresentation,RTLD_NOW|RTLD_LOCAL);
+        }
+        if (!handle) handle=dlopen("/usr/lib/libsandy.dylib",RTLD_NOW|RTLD_LOCAL);
+        if (handle) apply=(ApplyProfile)dlsym(handle,"libSandy_applyProfile");
+    }
+    if (!apply) return -1;
+    return apply("KeyboardGlass_ReadConfig");
+}
 
 static NSString *const NGDomain = @"com.ning.keyboardglass";
 static NSString *const NGChanged = @"com.ning.keyboardglass/ReloadPrefs";
@@ -54,9 +86,27 @@ static inline NSDictionary *NGValidateSnapshot(id envelope) {
     return config;
 }
 static inline BOOL NGLoadGlobalSnapshot(void) {
-    NSDictionary *config=NGValidateSnapshot([NSDictionary dictionaryWithContentsOfFile:NGSnapshotPath]);
+    NSError *error=nil;
+    NSData *data=[NSData dataWithContentsOfFile:NGSnapshotPath options:0 error:&error];
+    if (!data) {
+        static CFAbsoluteTime lastAttempt=-100;
+        CFAbsoluteTime now=CFAbsoluteTimeGetCurrent();
+        if (now-lastAttempt>=5) {
+            lastAttempt=now;
+            NGConfigAccessStatus=NGAcquireConfigReadAccess();
+        }
+        error=nil;
+        data=[NSData dataWithContentsOfFile:NGSnapshotPath options:0 error:&error];
+    }
+    NGConfigReadError=error ? [NSString stringWithFormat:@"%@:%ld",error.domain,(long)error.code] : nil;
+    id envelope=data ? [NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:NULL error:&error] : nil;
+    NSDictionary *config=NGValidateSnapshot(envelope);
     // A transient unreadable/corrupt update must not discard a known-good snapshot.
-    if (!config) return NO;
+    if (!config) {
+        if (data) NGConfigReadError=error ? [NSString stringWithFormat:@"%@:%ld",error.domain,(long)error.code] : @"invalid-schema";
+        return NO;
+    }
+    NGConfigReadError=nil;
     NGGlobalSnapshot=[config copy];
     return YES;
 }
