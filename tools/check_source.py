@@ -18,6 +18,9 @@ for i,row in enumerate(root):
   assert row['min']<=row['default']<=row['max']
 assert next(x for x in sliders if x['key']=='SystemAlpha')['default']==1
 choices=next(x for x in root if x['cell']=='PSLinkListCell');assert len(choices['validValues'])==7
+switches=[x for x in root if x['cell']=='PSSwitchCell' and x.get('key')=='HideCandidateControls']
+assert len(switches)==1 and switches[0]['default'] is False
+assert len(root)==45 and sum(x['cell']=='PSGroupCell' for x in root)==25
 renderer=(P/'GlassRenderer.h').read_text();model=(P/'GlassPreferences.h').read_text()
 for key in keys:
  assert key in model or key=='SystemAlpha'

@@ -17,10 +17,21 @@
 @interface NGKeyboardGlassPrefsController : PSListController
 @property(nonatomic, strong) NSArray *ngSpecifiers;
 @property(nonatomic, assign) BOOL ngLoading;
+@property(nonatomic, strong) id ngActiveObserver;
+- (void)ngRebuildSpecifierState;
+- (void)ngRefreshVisibleSettings;
 @end
 @implementation NGKeyboardGlassPrefsController
 - (NSBundle *)bundle {
     return [NSBundle bundleForClass:NGKeyboardGlassPrefsController.class];
+}
+- (void)setSpecifiers:(NSArray *)rows {
+    if (self.ngLoading) { [super setSpecifiers:rows]; return; }
+    self.ngLoading=YES;
+    @try {
+        self.ngSpecifiers=rows;
+        [super setSpecifiers:rows];
+    } @finally { self.ngLoading=NO; }
 }
 - (NSArray *)specifiers {
     if (!self.ngSpecifiers && !self.ngLoading) {
@@ -48,17 +59,64 @@
     }
     return self.ngSpecifiers;
 }
+- (void)ngRebuildSpecifierState {
+    self.ngSpecifiers=nil;
+    [super reloadSpecifiers];
+    (void)[self specifiers];
+}
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
     CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
     NSString *key = [specifier propertyForKey:@"key"];
     if (NGLimits()[key]) return NGEffectiveValues(NGSelectedSkin())[key];
+    if ([key isEqual:@"HideCandidateControls"]) {
+        id value=NGCopyPreference(key);
+        return @([value isKindOfClass:NSNumber.class] && [value boolValue]);
+    }
     if ([key isEqual:@"Skin"]) return NGSelectedSkin();
     if ([key isEqual:@"SystemAlpha"]) return @(NGNumber(NGCopyPreference(key), 1, 0, 1));
     return [specifier propertyForKey:@"default"];
 }
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    __weak NGKeyboardGlassPrefsController *weakSelf=self;
+    self.ngActiveObserver=[NSNotificationCenter.defaultCenter addObserverForName:UIApplicationDidBecomeActiveNotification
+        object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note) {
+            // Queue after the system Preferences resume handlers have run.
+            dispatch_async(dispatch_get_main_queue(), ^{
+                NGKeyboardGlassPrefsController *controller=weakSelf;
+                if (controller.isViewLoaded && controller.view.window &&
+                    controller.navigationController.topViewController==controller) {
+                    [controller ngRefreshVisibleSettings];
+                }
+            });
+        }];
+}
+- (void)dealloc {
+    if (self.ngActiveObserver) [NSNotificationCenter.defaultCenter removeObserver:self.ngActiveObserver];
+}
+- (void)ngRefreshVisibleSettings {
+    if (self.ngLoading) return;
+    UITableView *table=[self.view isKindOfClass:UITableView.class] ? (UITableView *)self.view : nil;
+    if (!table) {
+        for (UIView *view in self.view.subviews) {
+            if ([view isKindOfClass:UITableView.class]) { table=(UITableView *)view; break; }
+        }
+    }
+    CGPoint offset=table ? table.contentOffset : CGPointZero;
+    [self ngRebuildSpecifierState];
+    [table reloadData];
+    [table layoutIfNeeded];
+    if (table) {
+        CGFloat lo=-table.adjustedContentInset.top;
+        CGFloat hi=MAX(lo,table.contentSize.height-table.bounds.size.height+table.adjustedContentInset.bottom);
+        offset.y=MAX(lo,MIN(hi,offset.y));
+        [table setContentOffset:offset animated:NO];
+    }
+}
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    // Also publish existing values on upgrade, without requiring a slider change.
+    [self ngRefreshVisibleSettings];
+    // Publish existing values on upgrade without resetting any preferences.
     [self changed];
 }
 - (void)changed {
@@ -77,6 +135,8 @@
     NSString *key = [specifier propertyForKey:@"key"];
     if (!key) return;
     CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
+    // Migrate the previously active skin before writing a new skin choice.
+    NGMigrateSharedOverrides();
     if (NGLimits()[key]) {
         NSString *skin = NGSelectedSkin();
         id saved = NGCopyPreference(@"Overrides");
@@ -84,31 +144,33 @@
         NSMutableDictionary *selected = [NGOverridesForSkin(skin) mutableCopy];
         NSArray *range = NGLimits()[key];
         selected[key] = @(NGNumber(value, [NGBaseValues(skin)[key] doubleValue], [range[0] doubleValue], [range[1] doubleValue]));
-        all[skin] = selected;
+        all[@"*"] = selected;
         CFPreferencesSetAppValue(CFSTR("Overrides"), (__bridge CFPropertyListRef)all, (__bridge CFStringRef)NGDomain);
     } else if ([key isEqual:@"Skin"] && [NGSkinIDs() containsObject:value]) {
         CFPreferencesSetAppValue(CFSTR("Skin"), (__bridge CFPropertyListRef)value, (__bridge CFStringRef)NGDomain);
+    } else if ([key isEqual:@"HideCandidateControls"]) {
+        if (![value isKindOfClass:NSNumber.class]) return;
+        CFPreferencesSetAppValue(CFSTR("HideCandidateControls"), (__bridge CFNumberRef)@([value boolValue]), (__bridge CFStringRef)NGDomain);
     } else if ([key isEqual:@"SystemAlpha"]) {
         CFPreferencesSetAppValue(CFSTR("SystemAlpha"), (__bridge CFNumberRef)@(NGNumber(value,1,0,1)), (__bridge CFStringRef)NGDomain);
     } else return;
     [self changed];
     if ([key isEqual:@"Skin"]) {
-        self.ngSpecifiers = nil;
-        [self reloadSpecifiers];
+        [self ngRebuildSpecifierState];
     }
 }
 - (void)resetCurrentSkin {
     CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
     id saved = NGCopyPreference(@"Overrides");
     NSMutableDictionary *all = [saved isKindOfClass:NSDictionary.class] ? [saved mutableCopy] : [NSMutableDictionary dictionary];
-    [all removeObjectForKey:NGSelectedSkin()];
+    all[@"*"] = @{};
     CFPreferencesSetAppValue(CFSTR("Overrides"), (__bridge CFPropertyListRef)all, (__bridge CFStringRef)NGDomain);
-    [self changed]; self.ngSpecifiers = nil; [self reloadSpecifiers];
+    [self changed]; [self ngRebuildSpecifierState];
 }
 - (void)resetAll {
-    for (NSString *key in @[@"Skin",@"Overrides",@"SystemAlpha"]) {
+    for (NSString *key in @[@"Skin",@"Overrides",@"SystemAlpha",@"HideCandidateControls"]) {
         CFPreferencesSetAppValue((__bridge CFStringRef)key, NULL, (__bridge CFStringRef)NGDomain);
     }
-    [self changed]; self.ngSpecifiers = nil; [self reloadSpecifiers];
+    [self changed]; [self ngRebuildSpecifierState];
 }
 @end

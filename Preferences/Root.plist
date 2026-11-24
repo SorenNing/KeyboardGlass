@@ -12,7 +12,7 @@
 			<key>label</key>
 			<string>皮肤预设</string>
 			<key>footerText</key>
-			<string>各款皮肤分别保存微调值。切换后可继续调整，重新弹出键盘查看效果。</string>
+			<string>换皮肤保留所有手动微调值；未调过的项目使用新皮肤预设。已有微调会从升级时当前皮肤迁移。</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -47,6 +47,30 @@
 				<string>烟灰玻璃</string>
 				<string>液态玻璃</string>
 			</array>
+			<key>get</key>
+			<string>readPreferenceValue:</string>
+			<key>set</key>
+			<string>setPreferenceValue:specifier:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>候选栏</string>
+			<key>footerText</key>
+			<string>同时隐藏右上角向下箭头和它旁边的竖分割线。关闭后恢复系统显示状态；不改变候选文字和键盘布局。</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>label</key>
+			<string>隐藏候选栏收起按钮</string>
+			<key>key</key>
+			<string>HideCandidateControls</string>
+			<key>defaults</key>
+			<string>com.ning.keyboardglass</string>
+			<key>default</key>
+			<false/>
 			<key>get</key>
 			<string>readPreferenceValue:</string>
 			<key>set</key>
@@ -544,13 +568,13 @@
 			<key>label</key>
 			<string>恢复默认</string>
 			<key>footerText</key>
-			<string>恢复当前皮肤只清除该皮肤微调。恢复全部会回到当前原版皮肤，系统背景 alpha 恢复 1。</string>
+			<string>恢复材质预设会清除所有皮肤共用的手动微调，保留系统背景透明度和隐藏开关。恢复全部会回到原版皮肤，系统背景 alpha 恢复 1，隐藏开关关闭。</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
-			<string>恢复当前皮肤</string>
+			<string>恢复材质预设</string>
 			<key>action</key>
 			<string>resetCurrentSkin</string>
 		</dict>

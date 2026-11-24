@@ -13,17 +13,29 @@ int main(int argc,const char *argv[]) {
   NSString *mode=[NSString stringWithUTF8String:argv[1]];
   if([mode isEqual:@"produce"]) {
    CFPreferencesSetAppValue(CFSTR("Skin"),CFSTR("clear"),(__bridge CFStringRef)NGDomain);
+   CFPreferencesSetAppValue(CFSTR("HideCandidateControls"),kCFBooleanTrue,(__bridge CFStringRef)NGDomain);
    CFPreferencesSetAppValue(CFSTR("SystemAlpha"),(__bridge CFNumberRef)@0.42,(__bridge CFStringRef)NGDomain);
    NSDictionary *overrides=@{@"clear":@{@"CornerRadius":@31,@"CornerShape":@3.2}};
    CFPreferencesSetAppValue(CFSTR("Overrides"),(__bridge CFDictionaryRef)overrides,(__bridge CFStringRef)NGDomain);
    NSError *error=nil;NSCAssert(NGPublishGlobalSnapshot(&error),@"publish failed %@",error);
+   CFPreferencesSetAppValue(CFSTR("Skin"),CFSTR("liquid"),(__bridge CFStringRef)NGDomain);
+   NGMigrateSharedOverrides();
+   id migrated=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Overrides"),(__bridge CFStringRef)NGDomain));
+   NSCAssert([migrated[@"*"][@"CornerRadius"] doubleValue]==31,@"skin switch lost shared radius");
+   CFPreferencesSetAppValue(CFSTR("Skin"),CFSTR("clear"),(__bridge CFStringRef)NGDomain);
+   NSCAssert(NGSharedOverrides(@{@"clear":@{@"CornerRadius":@19}},@"clear").count==1,@"legacy read failed");
+   NSCAssert(NGSharedOverrides(@{@"*":@{},@"clear":@{@"CornerRadius":@19}},@"clear").count==0,@"cleared override resurrected");
   } else if([mode isEqual:@"consume"]) {
    // A private domain may contain conflicting defaults. The snapshot must win.
    CFPreferencesSetAppValue(CFSTR("Skin"),CFSTR("default"),(__bridge CFStringRef)NGDomain);
    NSCAssert(NGLoadGlobalSnapshot(),@"snapshot unavailable");
    NSCAssert([NGSelectedSkin() isEqual:@"clear"],@"skin not shared");
+   NSCAssert([NGCopyPreference(@"HideCandidateControls") boolValue],@"candidate toggle not shared");
+   NSCAssert(NGValidateSnapshot(@{@"Schema":@1,@"Configuration":@{@"Skin":@"clear",@"SystemAlpha":@1,@"Overrides":@{}}})!=nil,@"legacy snapshot rejected");
    NSCAssert(fabs([NGCopyPreference(@"SystemAlpha") doubleValue]-.42)<1e-6,@"alpha not shared");
    NSCAssert([NGEffectiveValues(NGSelectedSkin())[@"CornerRadius"] doubleValue]==31,@"radius not shared");
+   NSCAssert([NGEffectiveValues(@"liquid")[@"CornerRadius"] doubleValue]==31,@"new skin reset adjusted radius");
+   NSCAssert(fabs([NGEffectiveValues(@"liquid")[@"HighlightBrightness"] doubleValue]-.75)<1e-6,@"untouched preset field lost");
    NSCAssert([@"corrupt" writeToFile:NGSnapshotPath atomically:YES encoding:NSUTF8StringEncoding error:nil],@"corrupt fixture failed");
    NSCAssert(!NGLoadGlobalSnapshot(),@"bad plist accepted");
    NSCAssert([NGSelectedSkin() isEqual:@"clear"],@"lost last good config");

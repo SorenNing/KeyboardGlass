@@ -77,6 +77,8 @@ static inline NSDictionary *NGValidateSnapshot(id envelope) {
     if (![NGSkinIDs() containsObject:config[@"Skin"]] ||
         ![config[@"SystemAlpha"] isKindOfClass:NSNumber.class] ||
         ![config[@"Overrides"] isKindOfClass:NSDictionary.class]) return nil;
+    // Optional for compatibility with snapshots published by 0.1.16 and earlier.
+    if (config[@"HideCandidateControls"] && ![config[@"HideCandidateControls"] isKindOfClass:NSNumber.class]) return nil;
     double alpha=[config[@"SystemAlpha"] doubleValue];
     if (!isfinite(alpha) || alpha<0 || alpha>1) return nil;
     for (id key in config[@"Overrides"]) {
@@ -110,12 +112,29 @@ static inline BOOL NGLoadGlobalSnapshot(void) {
     NGGlobalSnapshot=[config copy];
     return YES;
 }
+// Settings-only migration. Keep legacy entries as a backup; '*' takes precedence
+// even when empty, so cleared shared adjustments cannot resurrect old values.
+static inline void NGMigrateSharedOverrides(void) {
+    CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
+    id saved=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Overrides"),(__bridge CFStringRef)NGDomain));
+    if ([saved isKindOfClass:NSDictionary.class] && [saved[@"*"] isKindOfClass:NSDictionary.class]) return;
+    id skin=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Skin"),(__bridge CFStringRef)NGDomain));
+    if (![NGSkinIDs() containsObject:skin]) skin=@"default";
+    NSMutableDictionary *all=[saved isKindOfClass:NSDictionary.class] ? [saved mutableCopy] : [NSMutableDictionary dictionary];
+    id legacy=all[skin];
+    all[@"*"]=[legacy isKindOfClass:NSDictionary.class] ? [legacy copy] : @{};
+    CFPreferencesSetAppValue(CFSTR("Overrides"),(__bridge CFDictionaryRef)all,(__bridge CFStringRef)NGDomain);
+    CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
+}
 static inline BOOL NGPublishGlobalSnapshot(NSError **error) {
+    NGMigrateSharedOverrides();
     CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
     id skin=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Skin"),(__bridge CFStringRef)NGDomain));
     id alpha=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("SystemAlpha"),(__bridge CFStringRef)NGDomain));
     id overrides=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Overrides"),(__bridge CFStringRef)NGDomain));
+    id hide=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("HideCandidateControls"),(__bridge CFStringRef)NGDomain));
     NSDictionary *config=@{@"Skin":[NGSkinIDs() containsObject:skin] ? skin : @"default",
+        @"HideCandidateControls":@([hide isKindOfClass:NSNumber.class] && [hide boolValue]),
         @"SystemAlpha":@(NGNumber(alpha,1,0,1)),
         @"Overrides":[overrides isKindOfClass:NSDictionary.class] ? overrides : @{}};
     NSDictionary *envelope=@{@"Schema":@1,@"Configuration":config};
@@ -132,10 +151,17 @@ static inline NSString *NGSelectedSkin(void) {
     id skin = NGCopyPreference(@"Skin");
     return [NGSkinIDs() containsObject:skin] ? skin : @"default";
 }
+// The '*' entry contains explicitly adjusted values shared by every skin.
+// Legacy data has only per-skin entries; use the active skin until Settings migrates it.
+static inline NSDictionary *NGSharedOverrides(id all, NSString *skin) {
+    if (![all isKindOfClass:NSDictionary.class]) return @{};
+    id shared=all[@"*"];
+    if ([shared isKindOfClass:NSDictionary.class]) return shared;
+    id legacy=all[skin];
+    return [legacy isKindOfClass:NSDictionary.class] ? legacy : @{};
+}
 static inline NSDictionary *NGOverridesForSkin(NSString *skin) {
-    id all = NGCopyPreference(@"Overrides");
-    id values = [all isKindOfClass:NSDictionary.class] ? all[skin] : nil;
-    return [values isKindOfClass:NSDictionary.class] ? values : @{};
+    return NGSharedOverrides(NGCopyPreference(@"Overrides"),skin);
 }
 static inline NSDictionary *NGEffectiveValues(NSString *skin) {
     NSMutableDictionary *v = [NGBaseValues(skin) mutableCopy];

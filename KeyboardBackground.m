@@ -24,6 +24,8 @@ static UIImage *NGCachedOutline;
 static NSDictionary *NGValues;
 static NSString *NGSkin;
 static CGFloat NGSystemAlpha = 1.0;
+static BOOL NGHideCandidateControls;
+static void NGRefreshCandidateControls(void);
 static NSHashTable<UIVisualEffectView *> *NGHosts;
 static CFTimeInterval NGLastPreferenceCheck;
 static void NGReadPrefs(void) {
@@ -37,6 +39,9 @@ static void NGReadPrefs(void) {
     NGSkin = NGSelectedSkin();
     NGValues = NGEffectiveValues(NGSkin);
     NGSystemAlpha = NGNumber(NGCopyPreference(@"SystemAlpha"), 1, 0, 1);
+    id hide=NGCopyPreference(@"HideCandidateControls");
+    NGHideCandidateControls=[hide isKindOfClass:NSNumber.class] && [hide boolValue];
+    NGRefreshCandidateControls();
     NGCachedMaterial = nil;
     NGCachedOutline = nil;
     NSString *summary=[NSString stringWithFormat:@"[KeyboardGlass Prefs] bundle=%@ source=%@ skin=%@ alpha=%.4f radius=%.3f shape=%.3f sandboxProfile=%ld readError=%@\n",
@@ -132,6 +137,8 @@ static BOOL NGArrowHasSharedBackground(UIVisualEffectView *host) {
     }
     return NO;
 }
+#import "CandidateControls.h"
+
 static void NGApplyBackdropOutline(UIView *child, CGRect joined, BOOL enabled) {
     NGBackdropOutlineState *state=objc_getAssociatedObject(child,NGOutlineStateKey);
     if (!enabled) {
@@ -255,6 +262,23 @@ static BOOL NGHasVoidMethod(Class cls, SEL selector) {
     free(type);
     return ok;
 }
+static void NGInstallCandidateHooks(void) {
+    typedef void (*CandidateHook)(Class,SEL,IMP,IMP *);
+    CandidateHook hook=(CandidateHook)dlsym(RTLD_DEFAULT,"MSHookMessageEx");
+    if (!hook) return;
+    SEL selector=@selector(layoutSubviews);
+    Class candidateClass=NSClassFromString(@"TUICandidateView");
+    Class arrowClass=NSClassFromString(@"TUICandidateArrowButton");
+    static BOOL candidateInstalled=NO, arrowInstalled=NO;
+    if (!candidateInstalled && candidateClass && [candidateClass isSubclassOfClass:UIView.class] && NGHasVoidMethod(candidateClass,selector)) {
+        candidateInstalled=YES;
+        hook(candidateClass,selector,(IMP)NGCandidateLayout,(IMP *)&NGOriginalCandidateLayout);
+    }
+    if (!arrowInstalled && arrowClass && [arrowClass isSubclassOfClass:UIView.class] && NGHasVoidMethod(arrowClass,selector)) {
+        arrowInstalled=YES;
+        hook(arrowClass,selector,(IMP)NGArrowLayout,(IMP *)&NGOriginalArrowLayout);
+    }
+}
 __attribute__((constructor)) static void NGInstall(void) {
     @autoreleasepool {
         CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL,
@@ -266,6 +290,9 @@ __attribute__((constructor)) static void NGInstall(void) {
                     for (UIVisualEffectView *host in NGHosts.allObjects) [host setNeedsLayout];
                 }];
         }
+        NGInstallCandidateHooks();
+        [NSNotificationCenter.defaultCenter addObserverForName:UIKeyboardWillShowNotification object:nil queue:NSOperationQueue.mainQueue
+            usingBlock:^(__unused NSNotification *note) { NGInstallCandidateHooks(); }];
         Class cls=NSClassFromString(@"UIKBBackdropView");
         SEL sel=@selector(layoutSubviews);
         if (!cls || ![cls isSubclassOfClass:UIVisualEffectView.class] || !NGHasVoidMethod(cls,sel)) return;
