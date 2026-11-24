@@ -4,16 +4,48 @@
 @interface PSSpecifier : NSObject
 - (id)propertyForKey:(NSString *)key;
 @end
-@interface PSListController : UIViewController
+@interface PSViewController : UIViewController
+@end
+@interface PSListController : PSViewController
 - (NSArray *)loadSpecifiersFromPlistName:(NSString *)name target:(id)target;
+- (NSArray *)loadSpecifiersFromPlistName:(NSString *)name target:(id)target bundle:(NSBundle *)bundle;
+- (NSArray *)specifiers;
+- (void)setSpecifiers:(NSArray *)specifiers;
 - (void)reloadSpecifiers;
+- (NSInteger)numberOfGroups;
 @end
 @interface NGKeyboardGlassPrefsController : PSListController
 @property(nonatomic, strong) NSArray *ngSpecifiers;
+@property(nonatomic, assign) BOOL ngLoading;
 @end
 @implementation NGKeyboardGlassPrefsController
+- (NSBundle *)bundle {
+    return [NSBundle bundleForClass:NGKeyboardGlassPrefsController.class];
+}
 - (NSArray *)specifiers {
-    if (!self.ngSpecifiers) self.ngSpecifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
+    if (!self.ngSpecifiers && !self.ngLoading) {
+        self.ngLoading = YES;
+        @try {
+            NSBundle *bundle = [self bundle];
+            NSString *path = [bundle pathForResource:@"Root" ofType:@"plist"];
+            NSArray *rows;
+            if ([self respondsToSelector:@selector(loadSpecifiersFromPlistName:target:bundle:)]) {
+                rows = [self loadSpecifiersFromPlistName:@"Root" target:self bundle:bundle];
+            } else {
+                rows = [self loadSpecifiersFromPlistName:@"Root" target:self];
+            }
+            // Keep the inherited specifier/group bookkeeping synchronized with
+            // our cache through the framework setter, without guessing ivar offsets.
+            self.ngSpecifiers = rows;
+            [super setSpecifiers:rows];
+            NSString *report = [NSString stringWithFormat:@"[KeyboardGlass Settings] time=%@ bundle=%@ Root=%@ parsed=%lu stored=%lu groups=%ld\n",
+                NSDate.date, bundle.bundlePath, path, (unsigned long)rows.count,
+                (unsigned long)[super specifiers].count, (long)[super numberOfGroups]];
+            NSLog(@"%@", report);
+            NSString *logPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/KeyboardGlass-settings.log"];
+            [report writeToFile:logPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        } @finally { self.ngLoading = NO; }
+    }
     return self.ngSpecifiers;
 }
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
