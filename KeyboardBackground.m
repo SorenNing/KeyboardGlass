@@ -25,6 +25,8 @@ static NSDictionary *NGValues;
 static NSString *NGSkin;
 static CGFloat NGSystemAlpha = 1.0;
 static BOOL NGHideCandidateControls;
+static BOOL NGBlurEnabled;
+static CGFloat NGBlurStrength=0.5;
 static void NGRefreshCandidateControls(void);
 static NSHashTable<UIVisualEffectView *> *NGHosts;
 static CFTimeInterval NGLastPreferenceCheck;
@@ -41,6 +43,9 @@ static void NGReadPrefs(void) {
     NGSystemAlpha = NGNumber(NGCopyPreference(@"SystemAlpha"), 1, 0, 1);
     id hide=NGCopyPreference(@"HideCandidateControls");
     NGHideCandidateControls=[hide isKindOfClass:NSNumber.class] && [hide boolValue];
+    id blur=NGCopyPreference(@"BlurEnabled");
+    NGBlurEnabled=[blur isKindOfClass:NSNumber.class] && [blur boolValue];
+    NGBlurStrength=NGNumber(NGCopyPreference(@"BlurStrength"),0.5,0,1);
     NGRefreshCandidateControls();
     NGCachedMaterial = nil;
     NGCachedOutline = nil;
@@ -180,6 +185,8 @@ static void NGApplyBackdropOutline(UIView *child, CGRect joined, BOOL enabled) {
     child.layer.mask=state.container;
     [CATransaction commit];
 }
+#import "BackgroundBlur.h"
+
 static void NGApply(UIVisualEffectView *host) {
     if (!host.window || CGRectIsEmpty(host.bounds)) return;
     if (!NGHosts) NGHosts = [NSHashTable weakObjectsHashTable];
@@ -213,6 +220,7 @@ static void NGApply(UIVisualEffectView *host) {
     clip.hidden=sharedArrow;
     BOOL applyOutline=!sharedArrow && !original && CGRectGetWidth(joined)>=200 && CGRectGetHeight(joined)>=100;
     if (host.effect) host.effect = nil;
+    NGApplyBackgroundBlur(host,joined,sharedArrow);
     // Single-variable test: only the direct system backdrop child.
     Class backdropHostClass = NSClassFromString(@"UIKBBackdropView");
     Class backdropChildClass = NSClassFromString(@"_UIVisualEffectBackdropView");

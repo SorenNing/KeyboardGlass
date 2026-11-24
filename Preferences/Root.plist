@@ -116,6 +116,58 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>背景模糊</string>
+			<key>footerText</key>
+			<string>系统原生模糊叠加在玻璃素材下方，按键和候选文字保持清晰。强度为系统效果插值，不是模糊半径；外观会受系统背景透明度和系统辅助功能影响。</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>label</key>
+			<string>启用背景模糊</string>
+			<key>key</key>
+			<string>BlurEnabled</string>
+			<key>defaults</key>
+			<string>com.ning.keyboardglass</string>
+			<key>default</key>
+			<false/>
+			<key>get</key>
+			<string>readPreferenceValue:</string>
+			<key>set</key>
+			<string>setPreferenceValue:specifier:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>背景模糊强度</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>label</key>
+			<string>背景模糊强度</string>
+			<key>key</key>
+			<string>BlurStrength</string>
+			<key>defaults</key>
+			<string>com.ning.keyboardglass</string>
+			<key>min</key>
+			<real>0.0</real>
+			<key>max</key>
+			<real>1.0</real>
+			<key>default</key>
+			<real>0.5</real>
+			<key>showValue</key>
+			<true/>
+			<key>get</key>
+			<string>readPreferenceValue:</string>
+			<key>set</key>
+			<string>setPreferenceValue:specifier:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>玻璃底面</string>
 			<key>footerText</key>
 			<string>颜色用红、绿、蓝三个通道调节。明暗调整底面颜色，不改变 App 画面亮度。</string>
@@ -568,7 +620,7 @@
 			<key>label</key>
 			<string>恢复默认</string>
 			<key>footerText</key>
-			<string>恢复材质预设会清除所有皮肤共用的手动微调，保留系统背景透明度和隐藏开关。恢复全部会回到原版皮肤，系统背景 alpha 恢复 1，隐藏开关关闭。</string>
+			<string>恢复材质预设会清除所有皮肤共用的手动微调，保留系统背景透明度、背景模糊和隐藏开关。恢复全部会回到原版皮肤，系统背景 alpha 恢复 1，隐藏与模糊开关关闭。</string>
 		</dict>
 		<dict>
 			<key>cell</key>

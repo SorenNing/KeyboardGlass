@@ -18,7 +18,7 @@ policy=plistlib.loads((P/'Resources/KeyboardGlass_ReadConfig.plist').read_bytes(
 assert policy['AllowedProcesses']==['*'], 'Configuration access must cover all host Apps'
 assert policy['Extensions']==[{'type':'file','extension_class':'com.apple.app-sandbox.read','path':'/rootfs/var/mobile/Library/Accessibility/KeyboardGlass-preferences.plist'}], 'Grant read-only access to the exact host file on RootHide'
 root=plistlib.loads((P/'Preferences/Root.plist').read_bytes())['items']
-sliders=[x for x in root if x['cell']=='PSSliderCell'];assert len(sliders)==16
+sliders=[x for x in root if x['cell']=='PSSliderCell'];assert len(sliders)==17
 keys=[x['key'] for x in sliders];assert len(keys)==len(set(keys))
 for i,row in enumerate(root):
  if row['cell']=='PSSliderCell':
@@ -28,11 +28,15 @@ assert next(x for x in sliders if x['key']=='SystemAlpha')['default']==1
 choices=next(x for x in root if x['cell']=='PSLinkListCell');assert len(choices['validValues'])==7
 switches=[x for x in root if x['cell']=='PSSwitchCell' and x.get('key')=='HideCandidateControls']
 assert len(switches)==1 and switches[0]['default'] is False
-assert len(root)==45 and sum(x['cell']=='PSGroupCell' for x in root)==25
+assert len(root)==49 and sum(x['cell']=='PSGroupCell' for x in root)==27
+blur=next(x for x in root if x.get('key')=='BlurEnabled')
+strength=next(x for x in sliders if x['key']=='BlurStrength')
+assert blur['cell']=='PSSwitchCell' and blur['default'] is False
+assert strength['default']==0.5 and strength['min']==0 and strength['max']==1
 renderer=(P/'GlassRenderer.h').read_text();model=(P/'GlassPreferences.h').read_text()
 for key in keys:
- assert key in model or key=='SystemAlpha'
- if key!='SystemAlpha':assert key in renderer
+ assert key in model or key in ('SystemAlpha','BlurStrength')
+ if key not in ('SystemAlpha','BlurStrength'):assert key in renderer
 s=renderer[renderer.index('static inline double NGGlassDistance'):renderer.index('static inline UIImage *NGDrawOutline')]
 code='#include <math.h>\n#include <assert.h>\n'+s+'''\nint main(void) {
  for(int r=0;r<=40;r++) for(int p=20;p<=50;p++) {
@@ -55,4 +59,4 @@ with tempfile.TemporaryDirectory() as t:
  f=pathlib.Path(t)/'geometry.c';f.write_text(code);exe=pathlib.Path(t)/'check'
  subprocess.run(['cc','-Wall','-Wextra','-Werror',str(f),'-lm','-o',str(exe)],check=True)
  subprocess.run([str(exe)],check=True)
-print('PASS: 16 sliders, 7 skins, visible labels, default alpha 1.0, finite/symmetric production corner geometry and premultiplied compositing')
+print('PASS: 17 sliders, 7 skins, visible labels, default alpha 1.0, finite/symmetric production corner geometry and premultiplied compositing')

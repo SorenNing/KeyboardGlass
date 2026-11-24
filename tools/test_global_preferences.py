@@ -14,6 +14,8 @@ int main(int argc,const char *argv[]) {
   if([mode isEqual:@"produce"]) {
    CFPreferencesSetAppValue(CFSTR("Skin"),CFSTR("clear"),(__bridge CFStringRef)NGDomain);
    CFPreferencesSetAppValue(CFSTR("HideCandidateControls"),kCFBooleanTrue,(__bridge CFStringRef)NGDomain);
+   CFPreferencesSetAppValue(CFSTR("BlurEnabled"),kCFBooleanTrue,(__bridge CFStringRef)NGDomain);
+   CFPreferencesSetAppValue(CFSTR("BlurStrength"),(__bridge CFNumberRef)@0.65,(__bridge CFStringRef)NGDomain);
    CFPreferencesSetAppValue(CFSTR("SystemAlpha"),(__bridge CFNumberRef)@0.42,(__bridge CFStringRef)NGDomain);
    NSDictionary *overrides=@{@"clear":@{@"CornerRadius":@31,@"CornerShape":@3.2}};
    CFPreferencesSetAppValue(CFSTR("Overrides"),(__bridge CFDictionaryRef)overrides,(__bridge CFStringRef)NGDomain);
@@ -31,6 +33,9 @@ int main(int argc,const char *argv[]) {
    NSCAssert(NGLoadGlobalSnapshot(),@"snapshot unavailable");
    NSCAssert([NGSelectedSkin() isEqual:@"clear"],@"skin not shared");
    NSCAssert([NGCopyPreference(@"HideCandidateControls") boolValue],@"candidate toggle not shared");
+   NSCAssert([NGCopyPreference(@"BlurEnabled") boolValue],@"blur toggle not shared");
+   NSCAssert(fabs([NGCopyPreference(@"BlurStrength") doubleValue]-.65)<1e-6,@"blur strength not shared");
+   NSCAssert((NGValidateSnapshot(@{@"Schema":@1,@"Configuration":@{@"Skin":@"clear",@"SystemAlpha":@1,@"Overrides":@{},@"BlurStrength":@2}})==nil),@"invalid blur strength accepted");
    NSCAssert(NGValidateSnapshot(@{@"Schema":@1,@"Configuration":@{@"Skin":@"clear",@"SystemAlpha":@1,@"Overrides":@{}}})!=nil,@"legacy snapshot rejected");
    NSCAssert(fabs([NGCopyPreference(@"SystemAlpha") doubleValue]-.42)<1e-6,@"alpha not shared");
    NSCAssert([NGEffectiveValues(NGSelectedSkin())[@"CornerRadius"] doubleValue]==31,@"radius not shared");

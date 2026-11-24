@@ -17,6 +17,8 @@ jobs:
         run: python3 tools/test_candidate_controls.py
       - name: Check global preference producer and consumer
         run: python3 tools/test_global_preferences.py
+      - name: Check background blur lifecycle
+        run: python3 tools/test_background_blur.py
       - name: Build and verify native RootHide package
         run: python3 build.py
       - uses: actions/upload-artifact@v4

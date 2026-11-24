@@ -79,6 +79,10 @@ static inline NSDictionary *NGValidateSnapshot(id envelope) {
         ![config[@"Overrides"] isKindOfClass:NSDictionary.class]) return nil;
     // Optional for compatibility with snapshots published by 0.1.16 and earlier.
     if (config[@"HideCandidateControls"] && ![config[@"HideCandidateControls"] isKindOfClass:NSNumber.class]) return nil;
+    if (config[@"BlurEnabled"] && ![config[@"BlurEnabled"] isKindOfClass:NSNumber.class]) return nil;
+    if (config[@"BlurStrength"] && (![config[@"BlurStrength"] isKindOfClass:NSNumber.class] ||
+        !isfinite([config[@"BlurStrength"] doubleValue]) || [config[@"BlurStrength"] doubleValue]<0 ||
+        [config[@"BlurStrength"] doubleValue]>1)) return nil;
     double alpha=[config[@"SystemAlpha"] doubleValue];
     if (!isfinite(alpha) || alpha<0 || alpha>1) return nil;
     for (id key in config[@"Overrides"]) {
@@ -133,7 +137,10 @@ static inline BOOL NGPublishGlobalSnapshot(NSError **error) {
     id alpha=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("SystemAlpha"),(__bridge CFStringRef)NGDomain));
     id overrides=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Overrides"),(__bridge CFStringRef)NGDomain));
     id hide=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("HideCandidateControls"),(__bridge CFStringRef)NGDomain));
-    NSDictionary *config=@{@"Skin":[NGSkinIDs() containsObject:skin] ? skin : @"default",
+    id blur=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("BlurEnabled"),(__bridge CFStringRef)NGDomain));
+    id strength=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("BlurStrength"),(__bridge CFStringRef)NGDomain));
+    NSDictionary *config=@{@"BlurEnabled":@([blur isKindOfClass:NSNumber.class] && [blur boolValue]),
+        @"BlurStrength":@(NGNumber(strength,0.5,0,1)),@"Skin":[NGSkinIDs() containsObject:skin] ? skin : @"default",
         @"HideCandidateControls":@([hide isKindOfClass:NSNumber.class] && [hide boolValue]),
         @"SystemAlpha":@(NGNumber(alpha,1,0,1)),
         @"Overrides":[overrides isKindOfClass:NSDictionary.class] ? overrides : @{}};
