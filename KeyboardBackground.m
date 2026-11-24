@@ -1,31 +1,12 @@
 #import <UIKit/UIKit.h>
-#import <CoreGraphics/CoreGraphics.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
 #import "Material.h"
 #import <QuartzCore/QuartzCore.h>
 #include <unistd.h>
 #import "Diagnostics.h"
-#import "KeyboardBridge.h"
-const char *NGResourceDirectory(void) {
-    static NSString *directory;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        Dl_info info;
-        directory = dladdr((const void *)&NGResourceDirectory, &info) && info.dli_fname
-            ? [[NSString stringWithUTF8String:info.dli_fname] stringByDeletingLastPathComponent] : @"";
-    });
-    return directory.UTF8String;
-}
-static const void *NGDynamicKey = &NGDynamicKey;
 
-BOOL NGRenderAppContent(UIView *view, CGContextRef context) {
-    if (!NSThread.isMainThread || !view || !context) return NO;
-    @try { [view.layer renderInContext:context]; return YES; }
-    @catch (__unused NSException *exception) { return NO; }
-}
-
-// Static material remains available while dynamic App-content capture is invalid.
+// Pre-rendered approximation only. No capture, display link or Metal renderer.
 static const void *NGImageKey = &NGImageKey;
 static UIImage *NGMaterial(void) {
     static UIImage *image;
@@ -103,16 +84,6 @@ static void NGApply(UIVisualEffectView *host) {
     }
     clip.frame = host.contentView.bounds;
     view.frame = [clip convertRect:NGJoinedRect(host) fromView:host.window];
-    if (host.bounds.size.width >= 200 && host.bounds.size.height >= 20) {
-        NGTheseusKeyboardView *dynamic = objc_getAssociatedObject(host, NGDynamicKey);
-        if (!dynamic) {
-            dynamic = [[NGTheseusKeyboardView alloc] initWithFrame:view.frame];
-            [dynamic configureHost:host fallback:view];
-            [clip addSubview:dynamic];
-            objc_setAssociatedObject(host, NGDynamicKey, dynamic, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        }
-        dynamic.frame = view.frame;
-    }
     if (host.effect) host.effect = nil;
     // Single-variable test: only the direct system backdrop child.
     Class backdropHostClass = NSClassFromString(@"UIKBBackdropView");
@@ -121,7 +92,7 @@ static void NGApply(UIVisualEffectView *host) {
         for (UIView *child in host.subviews) {
             if (object_getClass(child) == backdropChildClass) {
                 child.hidden = NO;
-                child.alpha = 0.8;
+                child.alpha = 0.9;
             }
         }
     }

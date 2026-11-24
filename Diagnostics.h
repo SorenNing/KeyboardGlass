@@ -13,7 +13,7 @@ static NSString *NGDiagPath(void) {
             NSString *candidate = [dir stringByAppendingPathComponent:name];
             if ([fm createFileAtPath:candidate contents:[NSData data] attributes:nil]) { path = candidate; break; }
         }
-        NSLog(@"[KeyboardGlass diagnostic 0.1.9] log=%@", path ?: @"unavailable");
+        NSLog(@"[KeyboardGlass diagnostic 0.1.10] log=%@", path ?: @"unavailable");
     });
     return path;
 }
@@ -48,7 +48,7 @@ static void NGDiagnostic(UIVisualEffectView *host, BOOL after) {
         objc_setAssociatedObject(host, NGDiagSeenKey, @2, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     @try {
-        NSMutableString *s = [NSMutableString stringWithFormat:@"\n=== KeyboardGlass 0.1.9 pid=%d bundle=%@ phase=%@ time=%@ ===\n",
+        NSMutableString *s = [NSMutableString stringWithFormat:@"\n=== KeyboardGlass 0.1.10 pid=%d bundle=%@ phase=%@ time=%@ ===\n",
             (int)getpid(), NSBundle.mainBundle.bundleIdentifier, after ? @"after-apply" : @"before-apply", NSDate.date];
         UIView *root = host;
         NSUInteger level = 0;

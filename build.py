@@ -4,27 +4,13 @@ O=P/'dist'; O.mkdir(exist_ok=True)
 def run(a): subprocess.run(a,check=True,cwd=P)
 sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()
 f=O/'NingKeyboardGlass.dylib'
-build=P/'build'; build.mkdir(exist_ok=True)
-metal=build/'default.metallib'
-run(['xcrun','--sdk','iphoneos','metal','-mios-version-min=15.0','-c',str(P/'Vendor/Theseus/Shaders/TheseusShaders.metal'),'-o',str(build/'glass.air')])
-run(['xcrun','--sdk','iphoneos','metallib',str(build/'glass.air'),'-o',str(metal)])
-obj=build/'KeyboardBackground.o'
-run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysroot',sdk,'-c','-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror','KeyboardBackground.m','-o',str(obj)])
-sources=sorted(str(x) for x in (P/'Vendor/Theseus').rglob('*.swift'))+[str(P/'KeyboardDynamic.swift'),str(P/'KeyboardEdges.swift'),str(P/'AppWindowCapture.swift')]
-args=['xcrun','--sdk','iphoneos','swiftc','-swift-version','5','-strict-concurrency=minimal','-target','arm64e-apple-ios15.0','-sdk',sdk,'-O','-whole-module-optimization','-parse-as-library','-emit-library','-module-name','NingKeyboardGlassDynamic','-import-objc-header',str(P/'SwiftBridge.h'),'-Xlinker','-install_name','-Xlinker','/Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib','-Xlinker','-rpath','-Xlinker','/usr/lib/swift','-o',str(f)]
-for framework in ['UIKit','Foundation','QuartzCore','CoreGraphics','CoreVideo','Metal','MetalKit','Accelerate','IOSurface']: args+=['-framework',framework]
-run(args+sources+[str(obj)])
+run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysroot',sdk,'-dynamiclib','-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror','KeyboardBackground.m','-framework','UIKit','-framework','Foundation','-framework','CoreGraphics','-install_name','/Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib','-o',str(f)])
 run(['codesign','--force','--sign','-',str(f)])
 run(['codesign','--verify','--strict','--all-architectures',str(f)])
 b=f.read_bytes(); assert struct.unpack_from('<I',b,8)[0]==0x80000002
-control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.1.9\nArchitecture: iphoneos-arm64e\nMaintainer: Ning&valzevul\nAuthor: Ning&valzevul\nSection: Tweaks\nDepends: firmware (>= 17.0), mobilesubstrate\nDescription: Theseus glass with in-process App-content layer capture and static fallback; experimental.\n'
+control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.1.10\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nDepends: firmware (>= 17.0), mobilesubstrate\nDescription: Static transparent keyboard background. No live rendering.\n'
 flt=plistlib.dumps({'Filter':{'Bundles':['com.apple.UIKit']}})
 files={'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib':b,'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.plist':flt}
-resource='Library/MobileSubstrate/DynamicLibraries/KeyboardGlass.bundle/'
-files[resource+'default.metallib']=metal.read_bytes()
-files[resource+'Info.plist']=plistlib.dumps({'CFBundleIdentifier':'com.ning.keyboardglass.resources','CFBundlePackageType':'BNDL','CFBundleVersion':'0.1.9'})
-files['usr/share/doc/com.ning.keyboardglass/LICENSE-Theseus']=(P/'Vendor/LICENSE-Theseus').read_bytes()
-files['usr/share/doc/com.ning.keyboardglass/NOTICE']=(P/'NOTICE').read_bytes()
 def tar(files):
  out=io.BytesIO()
  with tarfile.open(fileobj=out,mode='w',format=tarfile.USTAR_FORMAT) as t:
@@ -45,7 +31,7 @@ for name,data in parts.items():
  h=f'{name+"/":<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(data):<10}`\n'.encode();assert len(h)==60
  out+=h+data
  if len(data)%2:out+=b'\n'
-deb=O/'com.ning.keyboardglass_0.1.9_iphoneos-arm64e.deb';deb.write_bytes(out)
+deb=O/'com.ning.keyboardglass_0.1.10_iphoneos-arm64e.deb';deb.write_bytes(out)
 # Verify bytes in final package, not only pre-package library.
 with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
  actual=t.extractfile('./Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib').read()

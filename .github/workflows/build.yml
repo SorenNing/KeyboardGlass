@@ -1,4 +1,4 @@
-name: Keyboard Glass 0.1.9 (64e)
+name: Keyboard Glass 64e
 on:
   workflow_dispatch:
 permissions:
@@ -6,21 +6,14 @@ permissions:
 jobs:
   build:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare Metal toolchain
-        run: |
-          if ! xcrun --sdk iphoneos metal -v; then
-            xcodebuild -downloadComponent MetalToolchain
-          fi
-      - name: Check capture coordinate mapping
-        run: xcrun swift test_capture_geometry.swift
       - name: Build and verify native RootHide package
         run: python3 build.py
       - uses: actions/upload-artifact@v4
         with:
-          name: keyboard-glass-0.1.9-64e
+          name: keyboard-glass-64e
           path: |
             dist/*.deb
             dist/verification.json
