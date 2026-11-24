@@ -6,7 +6,18 @@
 #import <QuartzCore/QuartzCore.h>
 #include <unistd.h>
 #import "Diagnostics.h"
-#import "CaptureProbe.h"
+#import "KeyboardBridge.h"
+const char *NGResourceDirectory(void) {
+    static NSString *directory;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        Dl_info info;
+        directory = dladdr((const void *)&NGResourceDirectory, &info) && info.dli_fname
+            ? [[NSString stringWithUTF8String:info.dli_fname] stringByDeletingLastPathComponent] : @"";
+    });
+    return directory.UTF8String;
+}
+static const void *NGDynamicKey = &NGDynamicKey;
 
 // Pre-rendered approximation only. No capture, display link or Metal renderer.
 static const void *NGImageKey = &NGImageKey;
@@ -86,6 +97,16 @@ static void NGApply(UIVisualEffectView *host) {
     }
     clip.frame = host.contentView.bounds;
     view.frame = [clip convertRect:NGJoinedRect(host) fromView:host.window];
+    if (host.bounds.size.width >= 200 && host.bounds.size.height >= 20) {
+        NGTheseusKeyboardView *dynamic = objc_getAssociatedObject(host, NGDynamicKey);
+        if (!dynamic) {
+            dynamic = [[NGTheseusKeyboardView alloc] initWithFrame:view.frame];
+            [dynamic configureHost:host fallback:view];
+            [clip addSubview:dynamic];
+            objc_setAssociatedObject(host, NGDynamicKey, dynamic, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        dynamic.frame = view.frame;
+    }
     if (host.effect) host.effect = nil;
     // Single-variable test: only the direct system backdrop child.
     Class backdropHostClass = NSClassFromString(@"UIKBBackdropView");
@@ -110,7 +131,6 @@ static void NGLayout(id self, SEL cmd) {
         NGDiagnostic(self, NO);
         NGApply(self);
         NGDiagnostic(self, YES);
-        NGProbeSchedule(self);
         UIView *root = [self superview];
         for (UIView *v = root; v && v != [self window]; v = v.superview) {
             if ([NSStringFromClass(v.class) containsString:@"InputSetHost"]) { root = v; break; }
