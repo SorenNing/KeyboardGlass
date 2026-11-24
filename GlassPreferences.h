@@ -1,0 +1,57 @@
+#import <Foundation/Foundation.h>
+#import <CoreFoundation/CoreFoundation.h>
+#include <math.h>
+
+static NSString *const NGDomain = @"com.ning.keyboardglass";
+static NSString *const NGChanged = @"com.ning.keyboardglass/ReloadPrefs";
+static inline NSArray<NSString *> *NGSkinIDs(void) {
+    return @[@"default", @"clear", @"frost", @"crystal", @"ice", @"smoke", @"liquid"];
+}
+static inline NSDictionary<NSString *, NSNumber *> *NGBaseValues(NSString *skin) {
+    NSMutableDictionary *v = [@{@"BodyRed":@1, @"BodyGreen":@1, @"BodyBlue":@1,
+        @"BodyOpacity":@0.059, @"BodyBrightness":@1, @"GradientStrength":@0,
+        @"GradientAngle":@90, @"HighlightThickness":@1, @"HighlightBrightness":@0.49,
+        @"HighlightWidth":@2, @"InnerShadow":@0, @"OuterShadow":@0,
+        @"EdgeSoftness":@0.4, @"CornerRadius":@14, @"CornerShape":@2} mutableCopy];
+    if ([skin isEqual:@"clear"]) [v addEntriesFromDictionary:@{@"BodyOpacity":@0.025,@"HighlightBrightness":@0.3,@"HighlightThickness":@0.5}];
+    if ([skin isEqual:@"frost"]) [v addEntriesFromDictionary:@{@"BodyOpacity":@0.2,@"BodyBlue":@0.99,@"HighlightBrightness":@0.25,@"HighlightWidth":@4,@"EdgeSoftness":@1.5}];
+    if ([skin isEqual:@"crystal"]) [v addEntriesFromDictionary:@{@"BodyOpacity":@0.05,@"HighlightThickness":@1.6,@"HighlightBrightness":@0.8,@"HighlightWidth":@6,@"InnerShadow":@0.25,@"OuterShadow":@0.15}];
+    if ([skin isEqual:@"ice"]) [v addEntriesFromDictionary:@{@"BodyRed":@0.7,@"BodyGreen":@0.87,@"BodyBlue":@1,@"BodyOpacity":@0.13,@"HighlightBrightness":@0.6,@"GradientStrength":@0.12}];
+    if ([skin isEqual:@"smoke"]) [v addEntriesFromDictionary:@{@"BodyRed":@0.15,@"BodyGreen":@0.18,@"BodyBlue":@0.23,@"BodyOpacity":@0.3,@"HighlightBrightness":@0.3,@"InnerShadow":@0.2}];
+    if ([skin isEqual:@"liquid"]) [v addEntriesFromDictionary:@{@"BodyOpacity":@0.059,@"HighlightThickness":@1.2,@"HighlightBrightness":@0.75,@"HighlightWidth":@5,@"InnerShadow":@0.24,@"OuterShadow":@0.08,@"GradientStrength":@0.12,@"EdgeSoftness":@0.6,@"CornerShape":@2.8}];
+    return v;
+}
+static inline NSDictionary *NGLimits(void) {
+    return @{@"BodyRed":@[@0,@1],@"BodyGreen":@[@0,@1],@"BodyBlue":@[@0,@1],
+        @"BodyOpacity":@[@0,@1],@"BodyBrightness":@[@0,@1.5],
+        @"GradientStrength":@[@0,@1],@"GradientAngle":@[@0,@360],
+        @"HighlightThickness":@[@0,@4],@"HighlightBrightness":@[@0,@1],
+        @"HighlightWidth":@[@0,@14],@"InnerShadow":@[@0,@1],@"OuterShadow":@[@0,@1],
+        @"EdgeSoftness":@[@0,@5],@"CornerRadius":@[@0,@40],@"CornerShape":@[@2,@5]};
+}
+static inline double NGNumber(id value, double fallback, double lo, double hi) {
+    if (![value isKindOfClass:NSNumber.class]) return fallback;
+    double x = [value doubleValue];
+    return isfinite(x) ? fmin(hi, fmax(lo, x)) : fallback;
+}
+static inline id NGCopyPreference(NSString *key) {
+    return CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)key, (__bridge CFStringRef)NGDomain));
+}
+static inline NSString *NGSelectedSkin(void) {
+    id skin = NGCopyPreference(@"Skin");
+    return [NGSkinIDs() containsObject:skin] ? skin : @"default";
+}
+static inline NSDictionary *NGOverridesForSkin(NSString *skin) {
+    id all = NGCopyPreference(@"Overrides");
+    id values = [all isKindOfClass:NSDictionary.class] ? all[skin] : nil;
+    return [values isKindOfClass:NSDictionary.class] ? values : @{};
+}
+static inline NSDictionary *NGEffectiveValues(NSString *skin) {
+    NSMutableDictionary *v = [NGBaseValues(skin) mutableCopy];
+    NSDictionary *saved = NGOverridesForSkin(skin), *limits = NGLimits();
+    for (NSString *key in limits) {
+        NSArray *range = limits[key];
+        v[key] = @(NGNumber(saved[key], [v[key] doubleValue], [range[0] doubleValue], [range[1] doubleValue]));
+    }
+    return v;
+}

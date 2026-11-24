@@ -2,13 +2,14 @@
 #import <objc/runtime.h>
 #import <dlfcn.h>
 #import "Material.h"
+#import "GlassRenderer.h"
 #import <QuartzCore/QuartzCore.h>
 #include <unistd.h>
 #import "Diagnostics.h"
 
 // Pre-rendered approximation only. No capture, display link or Metal renderer.
 static const void *NGImageKey = &NGImageKey;
-static UIImage *NGMaterial(void) {
+static UIImage *NGOriginalMaterial(void) {
     static UIImage *image;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
@@ -17,6 +18,27 @@ static UIImage *NGMaterial(void) {
         image = [raw resizableImageWithCapInsets:UIEdgeInsetsMake(14,14,14,14) resizingMode:UIImageResizingModeStretch];
     });
     return image;
+}
+static UIImage *NGCachedMaterial;
+static NSDictionary *NGValues;
+static NSString *NGSkin;
+static CGFloat NGSystemAlpha = 1.0;
+static NSHashTable<UIVisualEffectView *> *NGHosts;
+static void NGReadPrefs(void) {
+    CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
+    NGSkin = NGSelectedSkin();
+    NGValues = NGEffectiveValues(NGSkin);
+    NGSystemAlpha = NGNumber(NGCopyPreference(@"SystemAlpha"), 1, 0, 1);
+    NGCachedMaterial = nil;
+}
+static UIImage *NGMaterial(void) {
+    if (!NGValues) NGReadPrefs();
+    if (!NGCachedMaterial) {
+        BOOL original = [NGSkin isEqualToString:@"default"] && NGOverridesForSkin(NGSkin).count == 0;
+        NGCachedMaterial = original ? NGOriginalMaterial() : NGDrawGlass(NGValues);
+        if (!NGCachedMaterial) NGCachedMaterial = NGOriginalMaterial();
+    }
+    return NGCachedMaterial;
 }
 // Group only directly connected, aligned keyboard backdrops in the same host.
 // Each region crops the same original image; no material or key views change.
@@ -62,6 +84,8 @@ static CGRect NGJoinedRect(UIVisualEffectView *host) {
 }
 static void NGApply(UIVisualEffectView *host) {
     if (!host.window || CGRectIsEmpty(host.bounds)) return;
+    if (!NGHosts) NGHosts = [NSHashTable weakObjectsHashTable];
+    [NGHosts addObject:host];
     UIImage *material = NGMaterial();
     if (!material) return; // Do not remove native background if asset fails.
     UIView *clip = objc_getAssociatedObject(host, NGClipKey);
@@ -82,6 +106,7 @@ static void NGApply(UIVisualEffectView *host) {
         [clip addSubview:view];
         objc_setAssociatedObject(host, NGImageKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
+    if (view.image != material) view.image = material;
     clip.frame = host.contentView.bounds;
     view.frame = [clip convertRect:NGJoinedRect(host) fromView:host.window];
     if (host.effect) host.effect = nil;
@@ -92,7 +117,7 @@ static void NGApply(UIVisualEffectView *host) {
         for (UIView *child in host.subviews) {
             if (object_getClass(child) == backdropChildClass) {
                 child.hidden = NO;
-                child.alpha = 0.9;
+                child.alpha = NGSystemAlpha;
             }
         }
     }
@@ -118,6 +143,13 @@ static void NGLayout(id self, SEL cmd) {
         for (UIVisualEffectView *other in all) if (other != self) NGApply(other);
     } @finally { NGUpdating = NO; }
 }
+static void NGPreferenceChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {
+    (void)center; (void)observer; (void)name; (void)object; (void)info;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NGReadPrefs();
+        for (UIVisualEffectView *host in NGHosts.allObjects) [host setNeedsLayout];
+    });
+}
 static BOOL NGHasVoidMethod(Class cls, SEL selector) {
     Method m=class_getInstanceMethod(cls,selector);
     if (!m || method_getNumberOfArguments(m)!=2) return NO;
@@ -128,6 +160,8 @@ static BOOL NGHasVoidMethod(Class cls, SEL selector) {
 }
 __attribute__((constructor)) static void NGInstall(void) {
     @autoreleasepool {
+        CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL,
+            NGPreferenceChanged, (__bridge CFStringRef)NGChanged, NULL, CFNotificationSuspensionBehaviorCoalesce);
         Class cls=NSClassFromString(@"UIKBBackdropView");
         SEL sel=@selector(layoutSubviews);
         if (!cls || ![cls isSubclassOfClass:UIVisualEffectView.class] || !NGHasVoidMethod(cls,sel)) return;
