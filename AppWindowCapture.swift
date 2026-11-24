@@ -67,7 +67,7 @@ enum AppWindowCapture {
         let captured = NGRenderAppContent(root, context)
         context.restoreGState()
         guard captured else { report("app-content render exception; PNG fallback"); return false }
-        report("app-content layer source=\(NSStringFromClass(type(of: root))) app=\(Bundle.main.bundleIdentifier ?? "unknown") crop=\(NSStringFromCGRect(requested)) pixels=in-memory; keyboard-window excluded")
+        report("app-content layer source=\(NSStringFromClass(type(of: root))) app=\(Bundle.main.bundleIdentifier ?? "unknown") crop=\(NSCoder.string(for: requested)) pixels=in-memory; keyboard-window excluded")
         return true
     }
     private static func forbidden(_ name: String) -> Bool {
