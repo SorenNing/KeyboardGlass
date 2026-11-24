@@ -55,7 +55,7 @@ static const void *NGOutlineStateKey = &NGOutlineStateKey;
 @implementation NGBackdropOutlineState
 @end
 static void NGCollect(UIView *root, NSMutableArray<UIVisualEffectView *> *out, NSUInteger depth) {
-    if (!root || depth > 12 || root.hidden || root.alpha <= 0.0) return;
+    if (!root || depth > 20 || root.hidden || root.alpha <= 0.0) return;
     if ([NSStringFromClass(root.class) containsString:@"KeyboardDock"]) return;
     Class backdrop = NSClassFromString(@"UIKBBackdropView");
     if (backdrop && [root isKindOfClass:backdrop]) {
@@ -91,6 +91,29 @@ static CGRect NGJoinedRect(UIVisualEffectView *host) {
         if (!changed) break;
     }
     return joined;
+}
+// Only the candidate arrow's background is redundant when the full-width
+// candidate backdrop already covers its region. Never hide the button itself.
+static BOOL NGArrowHasSharedBackground(UIVisualEffectView *host) {
+    UIView *arrow=nil, *scope=nil;
+    Class arrowClass=NSClassFromString(@"TUICandidateArrowButton");
+    if (!arrowClass || !host.window) return NO;
+    NSUInteger depth=0;
+    for (UIView *v=host.superview; v && v!=host.window && depth<24; v=v.superview,depth++) {
+        if ([v isKindOfClass:arrowClass]) arrow=v;
+        if ([NSStringFromClass(v.class) containsString:@"InputSetHost"]) { scope=v; break; }
+    }
+    if (!arrow || !scope || host.bounds.size.width>80 || host.bounds.size.height>80) return NO;
+    CGRect target=[host convertRect:host.bounds toView:host.window];
+    NSMutableArray<UIVisualEffectView *> *all=[NSMutableArray array];
+    NGCollect(scope,all,0);
+    for (UIVisualEffectView *other in all) {
+        if (other==host || other.window!=host.window || [other isDescendantOfView:arrow]) continue;
+        CGRect rect=[other convertRect:other.bounds toView:host.window];
+        if (rect.size.width<200 || rect.size.height<20 || other.hidden || other.alpha<=0) continue;
+        if (CGRectContainsRect(CGRectInset(rect,-0.5,-0.5),target)) return YES;
+    }
+    return NO;
 }
 static void NGApplyBackdropOutline(UIView *child, CGRect joined, BOOL enabled) {
     NGBackdropOutlineState *state=objc_getAssociatedObject(child,NGOutlineStateKey);
@@ -162,7 +185,9 @@ static void NGApply(UIVisualEffectView *host) {
     CGRect joined=NGJoinedRect(host);
     view.frame = [clip convertRect:joined fromView:host.window];
     BOOL original=[NGSkin isEqualToString:@"default"] && NGOverridesForSkin(NGSkin).count==0;
-    BOOL applyOutline=!original && CGRectGetWidth(joined)>=200 && CGRectGetHeight(joined)>=100;
+    BOOL sharedArrow=NGArrowHasSharedBackground(host);
+    clip.hidden=sharedArrow;
+    BOOL applyOutline=!sharedArrow && !original && CGRectGetWidth(joined)>=200 && CGRectGetHeight(joined)>=100;
     if (host.effect) host.effect = nil;
     // Single-variable test: only the direct system backdrop child.
     Class backdropHostClass = NSClassFromString(@"UIKBBackdropView");
@@ -170,7 +195,7 @@ static void NGApply(UIVisualEffectView *host) {
     if (backdropHostClass && backdropChildClass && [host isKindOfClass:backdropHostClass]) {
         for (UIView *child in host.subviews) {
             if (object_getClass(child) == backdropChildClass) {
-                child.hidden = NO;
+                child.hidden = sharedArrow;
                 child.alpha = NGSystemAlpha;
                 NGApplyBackdropOutline(child,joined,applyOutline);
             }
