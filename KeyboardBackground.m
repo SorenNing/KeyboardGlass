@@ -174,10 +174,13 @@ static void NGApplyBackdropOutline(UIView *child, CGRect joined, BOOL enabled) {
     if (child.layer.mask && child.layer.mask!=state.container) return;
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
-    state.container.frame=child.bounds;
+    state.container.bounds=child.bounds;
+    state.container.position=CGPointMake(CGRectGetMidX(child.bounds),CGRectGetMidY(child.bounds));
     state.outline.contents=(__bridge id)image.CGImage;
     state.outline.contentsScale=image.scale;
     state.outline.contentsGravity=kCAGravityResize;
+    state.outline.minificationFilter=kCAFilterLinear;
+    state.outline.magnificationFilter=kCAFilterLinear;
     UIEdgeInsets caps=image.capInsets;
     CGSize size=image.size;
     state.outline.contentsCenter=CGRectMake(caps.left/size.width,caps.top/size.height,

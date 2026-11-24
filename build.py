@@ -1,7 +1,7 @@
 import subprocess,pathlib,struct,tarfile,io,gzip,hashlib,json,plistlib
 P=pathlib.Path(__file__).resolve().parent
 O=P/'dist';O.mkdir(exist_ok=True)
-VERSION='0.2.2'
+VERSION='0.2.3'
 MIN_IOS='16.0'
 def run(a):subprocess.run(a,check=True,cwd=P)
 sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()

@@ -37,7 +37,7 @@ renderer=(P/'GlassRenderer.h').read_text();model=(P/'GlassPreferences.h').read_t
 for key in keys:
  assert key in model or key in ('SystemAlpha','MaterialBlurStrength')
  if key not in ('SystemAlpha','MaterialBlurStrength'):assert key in renderer
-s=renderer[renderer.index('static inline double NGGlassDistance'):renderer.index('static inline UIImage *NGDrawOutline')]
+s=(P/'GlassRaster.h').read_text().replace('#pragma once','')
 code='#include <math.h>\n#include <assert.h>\n'+s+'''\nint main(void) {
  for(int r=0;r<=40;r++) for(int p=20;p<=50;p++) {
   double n=p/10.0;
