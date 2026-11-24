@@ -19,7 +19,13 @@ const char *NGResourceDirectory(void) {
 }
 static const void *NGDynamicKey = &NGDynamicKey;
 
-// Pre-rendered approximation only. No capture, display link or Metal renderer.
+BOOL NGRenderAppContent(UIView *view, CGContextRef context) {
+    if (!NSThread.isMainThread || !view || !context) return NO;
+    @try { [view.layer renderInContext:context]; return YES; }
+    @catch (__unused NSException *exception) { return NO; }
+}
+
+// Static material remains available while dynamic App-content capture is invalid.
 static const void *NGImageKey = &NGImageKey;
 static UIImage *NGMaterial(void) {
     static UIImage *image;

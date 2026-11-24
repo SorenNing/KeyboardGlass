@@ -477,9 +477,13 @@ final class TheseusRenderer: NSObject {
         if !presentsWithTransaction {
             commandBuffer.present(drawable)
         }
-        if let onPresent = onPresent {
-            commandBuffer.addCompletedHandler { _ in
-                DispatchQueue.main.async(execute: onPresent)
+        if let onPresent = onPresent, let captureFrame = NGKeyboardCapture.latest(sourceView) {
+            commandBuffer.addCompletedHandler { buffer in
+                guard buffer.status == .completed else { return }
+                DispatchQueue.main.async {
+                    NGKeyboardCapture.markPresented(sourceView, frame: captureFrame)
+                    onPresent()
+                }
             }
         }
 

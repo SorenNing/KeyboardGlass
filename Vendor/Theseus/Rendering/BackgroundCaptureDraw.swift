@@ -9,6 +9,7 @@ final class BackgroundCaptureDraw {
     private var context: CGContext?
     private var textures: [MTLTexture] = []
     private var textureIndex = 0
+    private var lastStatsTime: CFTimeInterval = 0
     private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
 
     init(device: MTLDevice) {
@@ -29,7 +30,7 @@ final class BackgroundCaptureDraw {
         excludedViews.forEach { $0.isHidden = true }
 
         // Must follow the exclusion hiding above so excluded subtrees are skipped.
-        let compensation: [CaptureCompensation.Entry] = [] // keyboard capture keeps only native alpha-0.8 backdrop
+        let compensation: [CaptureCompensation.Entry] = [] // App-content layers only; no keyboard backdrop
 
         defer {
             CaptureCompensation.end(compensation)
@@ -67,10 +68,12 @@ final class BackgroundCaptureDraw {
         ctx.scaleBy(x: effectiveScale, y: -effectiveScale)
         ctx.translateBy(x: -region.origin.x, y: -region.origin.y)
 
-        // Experimental compositor capture: old-frame feedback remains unverified.
+        // App-content CPU layer capture: never captures the keyboard compositor.
         let captured = NGKeyboardCapture.draw(source: sourceView, region: region, context: ctx)
         ctx.restoreGState()
         guard captured else { return nil }
+        CaptureEdges.extend(data, width: width, height: height, bytesPerRow: ctx.bytesPerRow,
+                            region: region, visible: CaptureEdges.visibleBounds(of: sourceView), scale: effectiveScale)
         let bytes = data.assumingMemoryBound(to: UInt8.self)
         var alphaSum = 0
         for row in 0..<16 {
@@ -79,16 +82,20 @@ final class BackgroundCaptureDraw {
                 alphaSum += Int(bytes[y*ctx.bytesPerRow+x*4+3])
             }
         }
-        guard alphaSum > 256 * 255 / 20 else { return nil }
-        CaptureEdges.extend(
-            data,
-            width: width,
-            height: height,
-            bytesPerRow: ctx.bytesPerRow,
-            region: region,
-            visible: CaptureEdges.visibleBounds(of: sourceView),
-            scale: effectiveScale
-        )
+        guard alphaSum > 256 * 255 * 9 / 10 else {
+            NGKeyboardCapture.reject(sourceView)
+            return nil
+        }
+        if CACurrentMediaTime() - lastStatsTime > 10 {
+            lastStatsTime = CACurrentMediaTime()
+            var fingerprint: UInt64 = 14695981039346656037
+            for row in 0..<16 { for col in 0..<16 {
+                let offset = min(height-1, row*height/16)*ctx.bytesPerRow + min(width-1,col*width/16)*4
+                for channel in 0..<4 { fingerprint = (fingerprint ^ UInt64(bytes[offset+channel])) &* 1099511628211 }
+            } }
+            let mean = Self.meanColor(of: data, width: width, height: height, bytesPerRow: ctx.bytesPerRow)
+            NGDynamicLog("input valid alpha=\(Double(alphaSum)/65280) luma=\(mean.luminance) fingerprint=\(String(fingerprint, radix: 16)) size=\(width)x\(height)")
+        }
 
         textureIndex = (textureIndex + 1) % 3
         let texture = textures[textureIndex]

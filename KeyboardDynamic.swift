@@ -2,7 +2,7 @@ import UIKit
 import Metal
 
 func NGDynamicLog(_ message: String) {
-    let line = "[KG017 \(ProcessInfo.processInfo.processIdentifier)] \(Date()) \(message)\n"
+    let line = "[KG019 \(ProcessInfo.processInfo.processIdentifier)] \(Date()) \(message)\n"
     let path = "/var/mobile/Library/Accessibility/KeyboardGlass-dynamic-\(ProcessInfo.processInfo.processIdentifier).log"
     if !FileManager.default.fileExists(atPath: path) { FileManager.default.createFile(atPath: path, contents: nil) }
     if let file = FileHandle(forWritingAtPath: path) {
@@ -24,7 +24,8 @@ extension Bundle {
     private let glass: TheseusView
     private weak var host: UIVisualEffectView?
     private weak var fallback: UIView?
-    private var lastPresent = CACurrentMediaTime()
+    private var lastPresent: CFTimeInterval = 0
+    private var lastGeneration: UInt64 = 0
     private var monitor: DisplayLinkDriver.Link?
     private var configuredDark: Bool?
     private var edgeKey = CGSize.zero
@@ -52,6 +53,12 @@ extension Bundle {
         layer.addSublayer(shade); layer.addSublayer(glow)
         glass.onPresent = { [weak self] in
             guard let self = self else { return }
+            guard let host = self.host, let window = host.window,
+                  self.visibleAncestors(host), UIApplication.shared.applicationState == .active,
+                  let frame = NGKeyboardCapture.presented(window),
+                  frame.generation > self.lastGeneration,
+                  CACurrentMediaTime() - frame.time < 0.4 else { return }
+            self.lastGeneration = frame.generation
             self.lastPresent = CACurrentMediaTime()
             if self.lastPresent - self.lastLog > 10 {
                 NGDynamicLog("GPU present blur=18 window=\(String(describing: self.host?.window))")
@@ -109,7 +116,7 @@ extension Bundle {
     override func didMoveToWindow() {
         super.didMoveToWindow()
         monitor?.invalidate(); monitor = nil
-        guard window != nil else { glass.pauseRendering(); fallback?.alpha = 1; return }
+        guard window != nil else { glass.pauseRendering(); glass.alpha = 0; fallback?.alpha = 1; return }
         glass.resumeRendering()
         monitor = DisplayLinkDriver.shared.add(framesPerSecond: .fps(10)) { [weak self] _ in
             guard let self = self else { return }
@@ -118,9 +125,10 @@ extension Bundle {
                   h.convert(h.bounds, to: w).intersects(w.bounds) else {
                 self.glass.pauseRendering(); self.glass.alpha = 0; self.fallback?.alpha = 1; return
             }
+            if self.glass.sourceView !== w { self.glass.sourceView = w; self.lastGeneration = 0 }
             self.glass.resumeRendering()
             self.glass.invalidateBackground()
-            if CACurrentMediaTime() - self.lastPresent > 1 {
+            if NGKeyboardCapture.latest(w) == nil || CACurrentMediaTime() - self.lastPresent > 0.5 {
                 self.glass.alpha = 0; self.fallback?.alpha = 1
             }
         }
@@ -130,35 +138,32 @@ extension Bundle {
     }
 }
 
-// Adapter used only for the .layerRendering capture path. No disk pixel storage.
+// Capture runs synchronously inside the App process that owns this keyboard hook.
 enum NGKeyboardCapture {
+    struct Frame { let generation: UInt64; let time: CFTimeInterval; let region: CGRect }
+    private static var presentedFrames: [ObjectIdentifier: Frame] = [:]
+    private(set) static var frames: [ObjectIdentifier: Frame] = [:]
+    private static var generation: UInt64 = 0
     static func draw(source: UIView, region: CGRect, context: CGContext) -> Bool {
-        guard Thread.isMainThread else { return false }
-        guard let window = source as? UIWindow else { return false }
-        let cls = NSClassFromString("_UIVisualEffectBackdropView")
-        var targets: [UIView] = []
-        func scan(_ v: UIView) {
-            if v.isHidden || v.alpha <= 0 { return }
-            if let cls = cls, type(of: v) == cls, abs(v.alpha - 0.8) < 0.001,
-               v.superview.map({ NSStringFromClass(type(of: $0)).contains("UIKBBackdropView") }) == true,
-               v.convert(v.bounds, to: window).intersects(region) { targets.append(v); return }
-            v.subviews.forEach(scan)
+        let key = ObjectIdentifier(source)
+        guard AppWindowCapture.draw(source: source, region: region, context: context) else {
+            frames.removeValue(forKey: key)
+            return false
         }
-        scan(window)
-        guard !targets.isEmpty else { return false }
-        var hidden: [UIView] = []
-        func mask(_ v: UIView) {
-            if targets.contains(where: { $0 === v }) { return }
-            for child in v.subviews {
-                if targets.contains(where: { $0 === child || $0.isDescendant(of: child) }) { mask(child) }
-                else if !child.isHidden { hidden.append(child); child.isHidden = true }
-            }
-        }
-        CATransaction.begin(); CATransaction.setDisableActions(true)
-        defer { hidden.forEach { $0.isHidden = false }; CATransaction.commit() }
-        mask(window)
-        UIGraphicsPushContext(context)
-        defer { UIGraphicsPopContext() }
-        return window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
+        generation &+= 1
+        frames[key] = Frame(generation: generation, time: CACurrentMediaTime(), region: region)
+        return true
+    }
+    static func markPresented(_ source: UIView, frame: Frame) {
+        presentedFrames[ObjectIdentifier(source)] = frame
+    }
+    static func presented(_ source: UIView) -> Frame? {
+        guard frames[ObjectIdentifier(source)] != nil else { return nil }
+        return presentedFrames[ObjectIdentifier(source)]
+    }
+    static func reject(_ source: UIView) { frames.removeValue(forKey: ObjectIdentifier(source)) }
+    static func latest(_ source: UIView?) -> Frame? {
+        guard let source = source else { return nil }
+        return frames[ObjectIdentifier(source)]
     }
 }
