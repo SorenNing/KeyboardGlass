@@ -34,7 +34,48 @@ static inline double NGNumber(id value, double fallback, double lo, double hi) {
     double x = [value doubleValue];
     return isfinite(x) ? fmin(hi, fmax(lo, x)) : fallback;
 }
+// Each injected App consumes one immutable global snapshot, not its sandbox domain.
+static NSDictionary *NGGlobalSnapshot;
+static NSString *const NGSnapshotPath = @"/var/mobile/Library/Accessibility/KeyboardGlass-preferences.plist";
+static inline NSDictionary *NGValidateSnapshot(id envelope) {
+    if (![envelope isKindOfClass:NSDictionary.class] ||
+        ![envelope[@"Schema"] isEqual:@1]) return nil;
+    id config=envelope[@"Configuration"];
+    if (![config isKindOfClass:NSDictionary.class]) return nil;
+    if (![NGSkinIDs() containsObject:config[@"Skin"]] ||
+        ![config[@"SystemAlpha"] isKindOfClass:NSNumber.class] ||
+        ![config[@"Overrides"] isKindOfClass:NSDictionary.class]) return nil;
+    double alpha=[config[@"SystemAlpha"] doubleValue];
+    if (!isfinite(alpha) || alpha<0 || alpha>1) return nil;
+    for (id key in config[@"Overrides"]) {
+        if (![key isKindOfClass:NSString.class] ||
+            ![config[@"Overrides"][key] isKindOfClass:NSDictionary.class]) return nil;
+    }
+    return config;
+}
+static inline BOOL NGLoadGlobalSnapshot(void) {
+    NSDictionary *config=NGValidateSnapshot([NSDictionary dictionaryWithContentsOfFile:NGSnapshotPath]);
+    // A transient unreadable/corrupt update must not discard a known-good snapshot.
+    if (!config) return NO;
+    NGGlobalSnapshot=[config copy];
+    return YES;
+}
+static inline BOOL NGPublishGlobalSnapshot(NSError **error) {
+    CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
+    id skin=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Skin"),(__bridge CFStringRef)NGDomain));
+    id alpha=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("SystemAlpha"),(__bridge CFStringRef)NGDomain));
+    id overrides=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Overrides"),(__bridge CFStringRef)NGDomain));
+    NSDictionary *config=@{@"Skin":[NGSkinIDs() containsObject:skin] ? skin : @"default",
+        @"SystemAlpha":@(NGNumber(alpha,1,0,1)),
+        @"Overrides":[overrides isKindOfClass:NSDictionary.class] ? overrides : @{}};
+    NSDictionary *envelope=@{@"Schema":@1,@"Configuration":config};
+    NSData *data=[NSPropertyListSerialization dataWithPropertyList:envelope format:NSPropertyListBinaryFormat_v1_0 options:0 error:error];
+    if (!data) return NO;
+    if (![data writeToFile:NGSnapshotPath options:NSDataWritingAtomic error:error]) return NO;
+    return [NSFileManager.defaultManager setAttributes:@{NSFilePosixPermissions:@0644} ofItemAtPath:NGSnapshotPath error:error];
+}
 static inline id NGCopyPreference(NSString *key) {
+    if (NGGlobalSnapshot) return NGGlobalSnapshot[key];
     return CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)key, (__bridge CFStringRef)NGDomain));
 }
 static inline NSString *NGSelectedSkin(void) {

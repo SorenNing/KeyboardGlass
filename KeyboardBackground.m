@@ -25,16 +25,29 @@ static NSDictionary *NGValues;
 static NSString *NGSkin;
 static CGFloat NGSystemAlpha = 1.0;
 static NSHashTable<UIVisualEffectView *> *NGHosts;
+static CFTimeInterval NGLastPreferenceCheck;
 static void NGReadPrefs(void) {
+    NGLastPreferenceCheck=CACurrentMediaTime();
     CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
+    NSDictionary *previous=NGGlobalSnapshot;
+    BOOL loaded=NGLoadGlobalSnapshot();
+    if (NGValues && previous && [previous isEqualToDictionary:NGGlobalSnapshot]) return;
+    NSLog(@"[KeyboardGlass Prefs] bundle=%@ global=%@ path=%@",
+        NSBundle.mainBundle.bundleIdentifier, loaded ? @"loaded" : (previous ? @"retained" : @"unavailable"), NGSnapshotPath);
     NGSkin = NGSelectedSkin();
     NGValues = NGEffectiveValues(NGSkin);
     NGSystemAlpha = NGNumber(NGCopyPreference(@"SystemAlpha"), 1, 0, 1);
     NGCachedMaterial = nil;
     NGCachedOutline = nil;
+    NSString *summary=[NSString stringWithFormat:@"[KeyboardGlass Prefs] bundle=%@ source=%@ skin=%@ alpha=%.4f radius=%.3f shape=%.3f\n",
+        NSBundle.mainBundle.bundleIdentifier, NGGlobalSnapshot ? @"global-snapshot" : @"CFPreferences-fallback", NGSkin, NGSystemAlpha,
+        [NGValues[@"CornerRadius"] doubleValue],[NGValues[@"CornerShape"] doubleValue]];
+    NSLog(@"%@",summary);
+    NSString *log=[NSString stringWithFormat:@"/var/mobile/Library/Accessibility/KeyboardGlass-prefs-%d.log",(int)getpid()];
+    [summary writeToFile:log atomically:YES encoding:NSUTF8StringEncoding error:nil];
 }
 static UIImage *NGMaterial(void) {
-    if (!NGValues) NGReadPrefs();
+    if (!NGValues || CACurrentMediaTime()-NGLastPreferenceCheck>1.0) NGReadPrefs();
     if (!NGCachedMaterial) {
         BOOL original = [NGSkin isEqualToString:@"default"] && NGOverridesForSkin(NGSkin).count == 0;
         NGCachedMaterial = original ? NGOriginalMaterial() : NGDrawGlass(NGValues);
@@ -242,6 +255,13 @@ __attribute__((constructor)) static void NGInstall(void) {
     @autoreleasepool {
         CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL,
             NGPreferenceChanged, (__bridge CFStringRef)NGChanged, NULL, CFNotificationSuspensionBehaviorCoalesce);
+        for (NSNotificationName name in @[UIApplicationDidBecomeActiveNotification, UIKeyboardWillShowNotification]) {
+            [NSNotificationCenter.defaultCenter addObserverForName:name object:nil queue:NSOperationQueue.mainQueue
+                usingBlock:^(__unused NSNotification *note) {
+                    NGReadPrefs();
+                    for (UIVisualEffectView *host in NGHosts.allObjects) [host setNeedsLayout];
+                }];
+        }
         Class cls=NSClassFromString(@"UIKBBackdropView");
         SEL sel=@selector(layoutSubviews);
         if (!cls || ![cls isSubclassOfClass:UIVisualEffectView.class] || !NGHasVoidMethod(cls,sel)) return;

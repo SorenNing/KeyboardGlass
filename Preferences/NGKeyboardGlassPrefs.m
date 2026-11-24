@@ -56,8 +56,20 @@
     if ([key isEqual:@"SystemAlpha"]) return @(NGNumber(NGCopyPreference(key), 1, 0, 1));
     return [specifier propertyForKey:@"default"];
 }
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    // Also publish existing values on upgrade, without requiring a slider change.
+    [self changed];
+}
 - (void)changed {
     CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
+    NSError *publishError=nil;
+    BOOL published=NGPublishGlobalSnapshot(&publishError);
+    NSString *status=[NSString stringWithFormat:@"[KeyboardGlass Settings] global-config=%@ path=%@ error=%@\n",
+        published ? @"published" : @"failed", NGSnapshotPath, publishError];
+    NSLog(@"%@",status);
+    NSString *logPath=[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/KeyboardGlass-settings-sync.log"];
+    [status writeToFile:logPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
     CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
         (__bridge CFStringRef)NGChanged, NULL, NULL, true);
 }
