@@ -8,7 +8,7 @@ run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysr
 run(['codesign','--force','--sign','-',str(f)])
 run(['codesign','--verify','--strict','--all-architectures',str(f)])
 b=f.read_bytes(); assert struct.unpack_from('<I',b,8)[0]==0x80000002
-control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.2\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nIcon: file:///usr/share/icons/com.ning.keyboardglass.png\nDepends: firmware (>= 17.0), mobilesubstrate, preferenceloader, com.opa334.libsandy\nDescription: Keyboard glass presets and adjustable static material with system background opacity control.\n'
+control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.2.1\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nIcon: file:///usr/share/icons/com.ning.keyboardglass.png\nDepends: firmware (>= 17.0), mobilesubstrate, preferenceloader, com.opa334.libsandy\nDescription: Keyboard glass presets and adjustable static material with system background opacity control.\n'
 flt=plistlib.dumps({'Filter':{'Bundles':['com.apple.UIKit']}})
 files={'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib':b,'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.plist':flt}
 profile=(P/'Resources/KeyboardGlass_ReadConfig.plist').read_bytes()
@@ -55,7 +55,7 @@ for name,data in parts.items():
  h=f'{name+"/":<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(data):<10}`\n'.encode();assert len(h)==60
  out+=h+data
  if len(data)%2:out+=b'\n'
-deb=O/'com.ning.keyboardglass_0.2_iphoneos-arm64e.deb';deb.write_bytes(out)
+deb=O/'com.ning.keyboardglass_0.2.1_iphoneos-arm64e.deb';deb.write_bytes(out)
 # Verify bytes in final package, not only pre-package library.
 with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
  profileMember=t.getmember('./Library/libSandy/KeyboardGlass_ReadConfig.plist')
@@ -66,7 +66,7 @@ with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
  assert entry.get('isController') is True
  assert entry['bundle']=='KeyboardGlassPrefs' and entry['cell']=='PSLinkCell'
  assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
- assert info['CFBundleVersion']=='0.2'
+ assert info['CFBundleVersion']=='0.2.1'
  assert entry['icon']=='icon.png'
  for iconName,size in [('icon.png',29),('icon@2x.png',58),('icon@3x.png',87)]:
   image=t.extractfile('./'+bundle+iconName).read()
