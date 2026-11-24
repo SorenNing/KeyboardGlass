@@ -11,6 +11,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check material geometry and settings
         run: python3 tools/check_source.py
+      - name: Check Settings controller cache and reload
+        run: python3 tools/test_settings_cache.py
       - name: Build and verify native RootHide package
         run: python3 build.py
       - uses: actions/upload-artifact@v4

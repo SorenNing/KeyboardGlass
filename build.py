@@ -8,7 +8,7 @@ run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysr
 run(['codesign','--force','--sign','-',str(f)])
 run(['codesign','--verify','--strict','--all-architectures',str(f)])
 b=f.read_bytes(); assert struct.unpack_from('<I',b,8)[0]==0x80000002
-control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.1.12\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nDepends: firmware (>= 17.0), mobilesubstrate, preferenceloader\nDescription: Keyboard glass presets and adjustable static material with system background opacity control.\n'
+control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.1.13\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nDepends: firmware (>= 17.0), mobilesubstrate, preferenceloader\nDescription: Keyboard glass presets and adjustable static material with system background opacity control.\n'
 flt=plistlib.dumps({'Filter':{'Bundles':['com.apple.UIKit']}})
 files={'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib':b,'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.plist':flt}
 # Preferences uses runtime symbols from the Settings process. No SDK-private framework link.
@@ -45,7 +45,7 @@ for name,data in parts.items():
  h=f'{name+"/":<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(data):<10}`\n'.encode();assert len(h)==60
  out+=h+data
  if len(data)%2:out+=b'\n'
-deb=O/'com.ning.keyboardglass_0.1.12_iphoneos-arm64e.deb';deb.write_bytes(out)
+deb=O/'com.ning.keyboardglass_0.1.13_iphoneos-arm64e.deb';deb.write_bytes(out)
 # Verify bytes in final package, not only pre-package library.
 with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
  entry=plistlib.loads(t.extractfile('./Library/PreferenceLoader/Preferences/KeyboardGlass.plist').read())['entry']
@@ -53,7 +53,7 @@ with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
  assert entry.get('isController') is True
  assert entry['bundle']=='KeyboardGlassPrefs' and entry['cell']=='PSLinkCell'
  assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
- assert info['CFBundleVersion']=='0.1.12'
+ assert info['CFBundleVersion']=='0.1.13'
  actual=t.extractfile('./Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib').read()
  assert actual==b
  check=O/'extracted.dylib';check.write_bytes(actual)
