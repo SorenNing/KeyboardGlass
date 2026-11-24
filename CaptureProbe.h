@@ -14,7 +14,7 @@ static NSString *NGProbeStats(UIImage *image) {
     if (!image.CGImage) return @"image=nil";
     uint8_t px[32*32*4] = {0};
     CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-    CGContextRef ctx = CGBitmapContextCreate(px,32,32,8,32*4,space,kCGImageAlphaPremultipliedLast);
+    CGContextRef ctx = CGBitmapContextCreate(px,32,32,8,32*4,space,(CGBitmapInfo)kCGImageAlphaPremultipliedLast);
     CGColorSpaceRelease(space);
     if (!ctx) return @"stats=context_failed";
     CGContextDrawImage(ctx,CGRectMake(0,0,32,32),image.CGImage);
