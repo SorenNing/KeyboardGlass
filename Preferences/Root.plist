@@ -116,17 +116,17 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>背景模糊</string>
+			<string>玻璃素材模糊</string>
 			<key>footerText</key>
-			<string>系统原生模糊叠加在玻璃素材下方，按键和候选文字保持清晰。强度为系统效果插值，不是模糊半径；外观会受系统背景透明度和系统辅助功能影响。</string>
+			<string>直接柔化玻璃素材图片的纹理、高光和阴影，不新增背景视图，不会模糊 App 画面或按键。默认关闭，0 为原始素材。</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>label</key>
-			<string>启用背景模糊</string>
+			<string>启用素材模糊</string>
 			<key>key</key>
-			<string>BlurEnabled</string>
+			<string>MaterialBlurEnabled</string>
 			<key>defaults</key>
 			<string>com.ning.keyboardglass</string>
 			<key>default</key>
@@ -140,15 +140,15 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>背景模糊强度</string>
+			<string>素材模糊强度</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
 			<key>label</key>
-			<string>背景模糊强度</string>
+			<string>素材模糊强度</string>
 			<key>key</key>
-			<string>BlurStrength</string>
+			<string>MaterialBlurStrength</string>
 			<key>defaults</key>
 			<string>com.ning.keyboardglass</string>
 			<key>min</key>
@@ -620,7 +620,7 @@
 			<key>label</key>
 			<string>恢复默认</string>
 			<key>footerText</key>
-			<string>恢复材质预设会清除所有皮肤共用的手动微调，保留系统背景透明度、背景模糊和隐藏开关。恢复全部会回到原版皮肤，系统背景 alpha 恢复 1，隐藏与模糊开关关闭。</string>
+			<string>恢复材质预设会清除所有皮肤共用的手动微调，保留系统背景透明度、素材模糊和隐藏开关。恢复全部会回到原版皮肤，系统背景 alpha 恢复 1，隐藏与模糊开关关闭。</string>
 		</dict>
 		<dict>
 			<key>cell</key>

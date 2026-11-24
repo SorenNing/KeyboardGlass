@@ -1,87 +1,83 @@
-import subprocess, pathlib, struct, tarfile, io, gzip, hashlib, json, plistlib
+import subprocess,pathlib,struct,tarfile,io,gzip,hashlib,json,plistlib
 P=pathlib.Path(__file__).resolve().parent
-O=P/'dist'; O.mkdir(exist_ok=True)
-def run(a): subprocess.run(a,check=True,cwd=P)
+O=P/'dist';O.mkdir(exist_ok=True)
+VERSION='0.2.2'
+MIN_IOS='16.0'
+def run(a):subprocess.run(a,check=True,cwd=P)
 sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()
-f=O/'NingKeyboardGlass.dylib'
-run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysroot',sdk,'-dynamiclib','-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror','KeyboardBackground.m','-framework','UIKit','-framework','Foundation','-framework','CoreGraphics','-framework','QuartzCore','-install_name','/Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib','-o',str(f)])
-run(['codesign','--force','--sign','-',str(f)])
-run(['codesign','--verify','--strict','--all-architectures',str(f)])
-b=f.read_bytes(); assert struct.unpack_from('<I',b,8)[0]==0x80000002
-control=b'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: 0.2.1\nArchitecture: iphoneos-arm64e\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nIcon: file:///usr/share/icons/com.ning.keyboardglass.png\nDepends: firmware (>= 17.0), mobilesubstrate, preferenceloader, com.opa334.libsandy\nDescription: Keyboard glass presets and adjustable static material with system background opacity control.\n'
-flt=plistlib.dumps({'Filter':{'Bundles':['com.apple.UIKit']}})
-files={'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib':b,'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.plist':flt}
-profile=(P/'Resources/KeyboardGlass_ReadConfig.plist').read_bytes()
-policy=plistlib.loads(profile)
-assert policy['AllowedProcesses']==['*']
-assert policy['Extensions']==[{'type':'file','extension_class':'com.apple.app-sandbox.read','path':'/rootfs/var/mobile/Library/Accessibility/KeyboardGlass-preferences.plist'}]
-files['Library/libSandy/KeyboardGlass_ReadConfig.plist']=profile
-# Preferences uses runtime symbols from the Settings process. No SDK-private framework link.
-prefs=O/'KeyboardGlassPrefs'
-run(['xcrun','--sdk','iphoneos','clang','-target','arm64e-apple-ios15.0','-isysroot',sdk,
-     '-bundle','-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror',
-     'Preferences/NGKeyboardGlassPrefs.m','-framework','UIKit','-framework','Foundation',
-     '-framework','CoreFoundation','-Wl,-undefined,dynamic_lookup','-o',str(prefs)])
-run(['codesign','--force','--sign','-',str(prefs)])
-run(['codesign','--verify','--strict','--all-architectures',str(prefs)])
-prefbytes=prefs.read_bytes();assert struct.unpack_from('<I',prefbytes,8)[0]==0x80000002
-bundle='Library/PreferenceBundles/KeyboardGlassPrefs.bundle/'
-files[bundle+'KeyboardGlassPrefs']=prefbytes
-for resource in ['Info.plist','Root.plist']:
- files[bundle+resource]=(P/'Preferences'/resource).read_bytes()
-files['Library/PreferenceLoader/Preferences/KeyboardGlass.plist']=(P/'Preferences/entry.plist').read_bytes()
-icons=P/'Resources/Icons'
-for name in ['icon.png','icon@2x.png','icon@3x.png']:
- files[bundle+name]=(icons/name).read_bytes()
-for name,suffix in [('package.png',''),('package-256.png','-256'),('package-128.png','-128')]:
- files['usr/share/icons/com.ning.keyboardglass'+suffix+'.png']=(icons/name).read_bytes()
-def tar(files):
+def tar(files,executables):
  out=io.BytesIO()
  with tarfile.open(fileobj=out,mode='w',format=tarfile.USTAR_FORMAT) as t:
   dirs=set()
-  for name,data in files.items():
+  for name in files:
    for parent in pathlib.PurePosixPath(name).parents:
-    if str(parent)!='.': dirs.add(str(parent))
+    if str(parent)!='.':dirs.add(str(parent))
   for name in sorted(dirs,key=lambda x:(x.count('/'),x)):
    i=tarfile.TarInfo('./'+name);i.type=tarfile.DIRTYPE;i.mode=0o755;i.uid=i.gid=0;t.addfile(i)
   for name,data in files.items():
-   i=tarfile.TarInfo('./'+name);i.size=len(data);i.mode=0o755 if name.endswith('.dylib') or name.endswith('/KeyboardGlassPrefs') else 0o644;i.uid=i.gid=0;t.addfile(i,io.BytesIO(data))
+   i=tarfile.TarInfo('./'+name);i.size=len(data);i.mode=0o755 if name in executables else 0o644;i.uid=i.gid=0;t.addfile(i,io.BytesIO(data))
  return gzip.compress(out.getvalue(),mtime=0)
-control+=f'Installed-Size: {sum((len(v)+1023)//1024 for v in files.values())}\n'.encode()
-md=''.join(hashlib.md5(v).hexdigest()+'  '+k+'\n' for k,v in files.items()).encode()
-parts={'debian-binary':b'2.0\n','control.tar.gz':tar({'control':control,'md5sums':md}),'data.tar.gz':tar(files)}
-out=bytearray(b'!<arch>\n')
-for name,data in parts.items():
- h=f'{name+"/":<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(data):<10}`\n'.encode();assert len(h)==60
- out+=h+data
- if len(data)%2:out+=b'\n'
-deb=O/'com.ning.keyboardglass_0.2.1_iphoneos-arm64e.deb';deb.write_bytes(out)
-# Verify bytes in final package, not only pre-package library.
-with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
- profileMember=t.getmember('./Library/libSandy/KeyboardGlass_ReadConfig.plist')
- assert profileMember.uid==0 and profileMember.gid==0 and profileMember.mode==0o644
- assert plistlib.loads(t.extractfile(profileMember).read())==policy
- entry=plistlib.loads(t.extractfile('./Library/PreferenceLoader/Preferences/KeyboardGlass.plist').read())['entry']
- info=plistlib.loads(t.extractfile('./'+bundle+'Info.plist').read())
- assert entry.get('isController') is True
- assert entry['bundle']=='KeyboardGlassPrefs' and entry['cell']=='PSLinkCell'
- assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
- assert info['CFBundleVersion']=='0.2.1'
- assert entry['icon']=='icon.png'
- for iconName,size in [('icon.png',29),('icon@2x.png',58),('icon@3x.png',87)]:
-  image=t.extractfile('./'+bundle+iconName).read()
-  assert image[:8]==b'\x89PNG\r\n\x1a\n' and struct.unpack_from('>II',image,16)==(size,size)
- for suffix,size in [('',512),('-256',256),('-128',128)]:
-  image=t.extractfile('./usr/share/icons/com.ning.keyboardglass'+suffix+'.png').read()
-  assert image[:8]==b'\x89PNG\r\n\x1a\n' and struct.unpack_from('>II',image,16)==(size,size)
- actual=t.extractfile('./Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib').read()
- assert actual==b
- check=O/'extracted.dylib';check.write_bytes(actual)
- run(['codesign','--verify','--strict','--all-architectures',str(check)])
- check.unlink()
- prefcheck=O/'extracted-prefs';prefcheck.write_bytes(t.extractfile('./'+bundle+'KeyboardGlassPrefs').read())
- assert prefcheck.read_bytes()==prefbytes
- run(['codesign','--verify','--strict','--all-architectures',str(prefcheck)])
- prefcheck.unlink()
-receipt={'preferences_cpusubtype':'0x80000002','payload_files':len(files),'sha256':hashlib.sha256(out).hexdigest(),'size':len(out),'cpusubtype':'0x80000002','strict_signature':True,'runtime_tested':False}
-(O/'verification.json').write_text(json.dumps(receipt,indent=2));print(receipt)
+def pack(parts):
+ out=bytearray(b'!<arch>\n')
+ for name,data in parts.items():
+  h=f'{name+"/":<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(data):<10}`\n'.encode();assert len(h)==60
+  out+=h+data
+  if len(data)%2:out+=b'\n'
+ return out
+def verify_macho(path,arch):
+ data=path.read_bytes();assert struct.unpack_from('<I',data,0)[0]==0xfeedfacf
+ assert struct.unpack_from('<I',data,8)[0]==(0x80000002 if arch=='arm64e' else 0)
+ off=32;minimum=None
+ for _ in range(struct.unpack_from('<I',data,16)[0]):
+  cmd,size=struct.unpack_from('<II',data,off)
+  if cmd==0x32:minimum=struct.unpack_from('<I',data,off+12)[0]
+  if cmd==0x25:minimum=struct.unpack_from('<I',data,off+8)[0]
+  off+=size
+ assert minimum is not None and minimum<=0x100000,hex(minimum or 0)
+ run(['codesign','--verify','--strict','--all-architectures',str(path)])
+ return data
+receipts=[]
+for scheme,arch,prefix in [('rootless','arm64','var/jb/'),('roothide','arm64e','')]:
+ B=O/scheme;B.mkdir(exist_ok=True)
+ engine=B/'NingKeyboardGlass.dylib';prefs=B/'KeyboardGlassPrefs'
+ flags=['xcrun','--sdk','iphoneos','clang','-target',arch+'-apple-ios'+MIN_IOS,'-isysroot',sdk,'-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror','-Wunguarded-availability']
+ frameworks=['-framework','UIKit','-framework','Foundation','-framework','CoreGraphics','-framework','QuartzCore']
+ install='/'+prefix+'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib'
+ run(flags+['-dynamiclib','KeyboardBackground.m']+frameworks+['-install_name',install,'-o',str(engine)])
+ run(flags+['-bundle','Preferences/NGKeyboardGlassPrefs.m']+frameworks+['-framework','CoreFoundation','-Wl,-undefined,dynamic_lookup','-o',str(prefs)])
+ for f in [engine,prefs]:run(['codesign','--force','--sign','-',str(f)])
+ binaries={prefix+'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.dylib':verify_macho(engine,arch),prefix+'Library/PreferenceBundles/KeyboardGlassPrefs.bundle/KeyboardGlassPrefs':verify_macho(prefs,arch)}
+ files=dict(binaries);bundle=prefix+'Library/PreferenceBundles/KeyboardGlassPrefs.bundle/'
+ files[prefix+'Library/MobileSubstrate/DynamicLibraries/NingKeyboardGlass.plist']=plistlib.dumps({'Filter':{'Bundles':['com.apple.UIKit']}})
+ for resource in ['Root.plist','Info.plist']:
+  files[bundle+resource]=(P/'Preferences'/resource).read_bytes()
+ entryPath=prefix+'Library/PreferenceLoader/Preferences/KeyboardGlass.plist'
+ files[entryPath]=(P/'Preferences/entry.plist').read_bytes()
+ for name in ['icon.png','icon@2x.png','icon@3x.png']:files[bundle+name]=(P/'Resources/Icons'/name).read_bytes()
+ for name,suffix in [('package.png',''),('package-256.png','-256'),('package-128.png','-128')]:
+  files[prefix+'usr/share/icons/com.ning.keyboardglass'+suffix+'.png']=(P/'Resources/Icons'/name).read_bytes()
+ policy=plistlib.loads((P/'Resources/KeyboardGlass_ReadConfig.plist').read_bytes())
+ host='/var/mobile/Library/Accessibility/KeyboardGlass-preferences.plist'
+ assert policy=={'AllowedProcesses':['*'],'Extensions':[{'type':'file','extension_class':'com.apple.app-sandbox.read','path':'/rootfs'+host}]}
+ if scheme=='rootless':policy['Extensions'][0]['path']=host
+ policyPath=prefix+'Library/libSandy/KeyboardGlass_ReadConfig.plist'
+ files[policyPath]=plistlib.dumps(policy)
+ icon='file:///'+prefix+'usr/share/icons/com.ning.keyboardglass.png'
+ control=(f'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: {VERSION}\nArchitecture: iphoneos-{arch}\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nIcon: {icon}\nDepends: firmware (>= {MIN_IOS}), mobilesubstrate, preferenceloader, com.opa334.libsandy\nDescription: Adjustable glass material for system keyboards on iOS 16 and 17.\nInstalled-Size: {sum((len(v)+1023)//1024 for v in files.values())}\n').encode()
+ md=''.join(hashlib.md5(v).hexdigest()+'  '+k+'\n' for k,v in files.items()).encode()
+ parts={'debian-binary':b'2.0\n','control.tar.gz':tar({'control':control,'md5sums':md},set()),'data.tar.gz':tar(files,set(binaries))}
+ out=pack(parts);deb=O/f'com.ning.keyboardglass_{VERSION}_iphoneos-{arch}.deb';deb.write_bytes(out)
+ with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
+  info=plistlib.loads(t.extractfile('./'+bundle+'Info.plist').read());entry=plistlib.loads(t.extractfile('./'+entryPath).read())['entry']
+  assert info['CFBundleVersion']==VERSION and entry.get('isController') is True and entry['icon']=='icon.png'
+  assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
+  member=t.getmember('./'+policyPath);assert member.uid==member.gid==0 and member.mode==0o644
+  assert plistlib.loads(t.extractfile(member).read())==policy
+  for name,data in files.items():assert t.extractfile('./'+name).read()==data
+  for name in binaries:
+   path=B/'extracted-check';path.write_bytes(t.extractfile('./'+name).read());verify_macho(path,arch);path.unlink()
+ assert len(files)==13
+ if prefix:assert all(name.startswith(prefix) for name in files)
+ else:assert all(not name.startswith('var/jb/') for name in files)
+ receipts.append({'version':VERSION,'scheme':scheme,'architecture':'iphoneos-'+arch,'cpusubtype':hex(0x80000002 if arch=='arm64e' else 0),'minimum_ios':MIN_IOS,'file':deb.name,'size':len(out),'sha256':hashlib.sha256(out).hexdigest(),'payload_files':len(files),'strict_signature':True,'runtime_tested':False,'profile_path':policy['Extensions'][0]['path']})
+(O/'verification.json').write_text(json.dumps(receipts,indent=2));print(json.dumps(receipts,indent=2))

@@ -29,14 +29,14 @@ choices=next(x for x in root if x['cell']=='PSLinkListCell');assert len(choices[
 switches=[x for x in root if x['cell']=='PSSwitchCell' and x.get('key')=='HideCandidateControls']
 assert len(switches)==1 and switches[0]['default'] is False
 assert len(root)==49 and sum(x['cell']=='PSGroupCell' for x in root)==27
-blur=next(x for x in root if x.get('key')=='BlurEnabled')
-strength=next(x for x in sliders if x['key']=='BlurStrength')
+blur=next(x for x in root if x.get('key')=='MaterialBlurEnabled')
+strength=next(x for x in sliders if x['key']=='MaterialBlurStrength')
 assert blur['cell']=='PSSwitchCell' and blur['default'] is False
 assert strength['default']==0.5 and strength['min']==0 and strength['max']==1
 renderer=(P/'GlassRenderer.h').read_text();model=(P/'GlassPreferences.h').read_text()
 for key in keys:
- assert key in model or key in ('SystemAlpha','BlurStrength')
- if key not in ('SystemAlpha','BlurStrength'):assert key in renderer
+ assert key in model or key in ('SystemAlpha','MaterialBlurStrength')
+ if key not in ('SystemAlpha','MaterialBlurStrength'):assert key in renderer
 s=renderer[renderer.index('static inline double NGGlassDistance'):renderer.index('static inline UIImage *NGDrawOutline')]
 code='#include <math.h>\n#include <assert.h>\n'+s+'''\nint main(void) {
  for(int r=0;r<=40;r++) for(int p=20;p<=50;p++) {

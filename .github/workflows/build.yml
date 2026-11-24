@@ -1,4 +1,4 @@
-name: Keyboard Glass 64e
+name: Keyboard Glass iOS16 rootless and RootHide
 on:
   workflow_dispatch:
 permissions:
@@ -17,13 +17,13 @@ jobs:
         run: python3 tools/test_candidate_controls.py
       - name: Check global preference producer and consumer
         run: python3 tools/test_global_preferences.py
-      - name: Check background blur lifecycle
-        run: python3 tools/test_background_blur.py
-      - name: Build and verify native RootHide package
+      - name: Check material blur and iOS 16 package policy
+        run: python3 tools/test_material_blur.py
+      - name: Build and verify rootless and RootHide packages
         run: python3 build.py
       - uses: actions/upload-artifact@v4
         with:
-          name: keyboard-glass-64e
+          name: keyboard-glass-0.2.2-both
           path: |
             dist/*.deb
             dist/verification.json

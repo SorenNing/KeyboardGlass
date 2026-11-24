@@ -68,11 +68,11 @@
     CFPreferencesAppSynchronize((__bridge CFStringRef)NGDomain);
     NSString *key = [specifier propertyForKey:@"key"];
     if (NGLimits()[key]) return NGEffectiveValues(NGSelectedSkin())[key];
-    if ([key isEqual:@"HideCandidateControls"] || [key isEqual:@"BlurEnabled"]) {
+    if ([key isEqual:@"HideCandidateControls"] || [key isEqual:@"MaterialBlurEnabled"]) {
         id value=NGCopyPreference(key);
         return @([value isKindOfClass:NSNumber.class] && [value boolValue]);
     }
-    if ([key isEqual:@"BlurStrength"]) return @(NGNumber(NGCopyPreference(key),0.5,0,1));
+    if ([key isEqual:@"MaterialBlurStrength"]) return @(NGNumber(NGCopyPreference(key),0.5,0,1));
     if ([key isEqual:@"Skin"]) return NGSelectedSkin();
     if ([key isEqual:@"SystemAlpha"]) return @(NGNumber(NGCopyPreference(key), 1, 0, 1));
     return [specifier propertyForKey:@"default"];
@@ -149,11 +149,11 @@
         CFPreferencesSetAppValue(CFSTR("Overrides"), (__bridge CFPropertyListRef)all, (__bridge CFStringRef)NGDomain);
     } else if ([key isEqual:@"Skin"] && [NGSkinIDs() containsObject:value]) {
         CFPreferencesSetAppValue(CFSTR("Skin"), (__bridge CFPropertyListRef)value, (__bridge CFStringRef)NGDomain);
-    } else if ([key isEqual:@"HideCandidateControls"] || [key isEqual:@"BlurEnabled"]) {
+    } else if ([key isEqual:@"HideCandidateControls"] || [key isEqual:@"MaterialBlurEnabled"]) {
         if (![value isKindOfClass:NSNumber.class]) return;
         CFPreferencesSetAppValue((__bridge CFStringRef)key, (__bridge CFNumberRef)@([value boolValue]), (__bridge CFStringRef)NGDomain);
-    } else if ([key isEqual:@"BlurStrength"]) {
-        CFPreferencesSetAppValue(CFSTR("BlurStrength"), (__bridge CFNumberRef)@(NGNumber(value,0.5,0,1)), (__bridge CFStringRef)NGDomain);
+    } else if ([key isEqual:@"MaterialBlurStrength"]) {
+        CFPreferencesSetAppValue(CFSTR("MaterialBlurStrength"), (__bridge CFNumberRef)@(NGNumber(value,0.5,0,1)), (__bridge CFStringRef)NGDomain);
     } else if ([key isEqual:@"SystemAlpha"]) {
         CFPreferencesSetAppValue(CFSTR("SystemAlpha"), (__bridge CFNumberRef)@(NGNumber(value,1,0,1)), (__bridge CFStringRef)NGDomain);
     } else return;
@@ -171,7 +171,7 @@
     [self changed]; [self ngRebuildSpecifierState];
 }
 - (void)resetAll {
-    for (NSString *key in @[@"Skin",@"Overrides",@"SystemAlpha",@"HideCandidateControls",@"BlurEnabled",@"BlurStrength"]) {
+    for (NSString *key in @[@"Skin",@"Overrides",@"SystemAlpha",@"HideCandidateControls",@"MaterialBlurEnabled",@"MaterialBlurStrength",@"BlurEnabled",@"BlurStrength"]) {
         CFPreferencesSetAppValue((__bridge CFStringRef)key, NULL, (__bridge CFStringRef)NGDomain);
     }
     [self changed]; [self ngRebuildSpecifierState];

@@ -3,6 +3,7 @@
 #import <dlfcn.h>
 #import "Material.h"
 #import "GlassRenderer.h"
+#import "MaterialBlur.h"
 #import <QuartzCore/QuartzCore.h>
 #include <unistd.h>
 #import "Diagnostics.h"
@@ -25,8 +26,8 @@ static NSDictionary *NGValues;
 static NSString *NGSkin;
 static CGFloat NGSystemAlpha = 1.0;
 static BOOL NGHideCandidateControls;
-static BOOL NGBlurEnabled;
-static CGFloat NGBlurStrength=0.5;
+static BOOL NGMaterialBlurEnabled;
+static CGFloat NGMaterialBlurStrength=0.5;
 static void NGRefreshCandidateControls(void);
 static NSHashTable<UIVisualEffectView *> *NGHosts;
 static CFTimeInterval NGLastPreferenceCheck;
@@ -43,9 +44,9 @@ static void NGReadPrefs(void) {
     NGSystemAlpha = NGNumber(NGCopyPreference(@"SystemAlpha"), 1, 0, 1);
     id hide=NGCopyPreference(@"HideCandidateControls");
     NGHideCandidateControls=[hide isKindOfClass:NSNumber.class] && [hide boolValue];
-    id blur=NGCopyPreference(@"BlurEnabled");
-    NGBlurEnabled=[blur isKindOfClass:NSNumber.class] && [blur boolValue];
-    NGBlurStrength=NGNumber(NGCopyPreference(@"BlurStrength"),0.5,0,1);
+    id blur=NGCopyPreference(@"MaterialBlurEnabled");
+    NGMaterialBlurEnabled=[blur isKindOfClass:NSNumber.class] && [blur boolValue];
+    NGMaterialBlurStrength=NGNumber(NGCopyPreference(@"MaterialBlurStrength"),0.5,0,1);
     NGRefreshCandidateControls();
     NGCachedMaterial = nil;
     NGCachedOutline = nil;
@@ -66,6 +67,7 @@ static UIImage *NGMaterial(void) {
         BOOL original = [NGSkin isEqualToString:@"default"] && NGOverridesForSkin(NGSkin).count == 0;
         NGCachedMaterial = original ? NGOriginalMaterial() : NGDrawGlass(NGValues);
         if (!NGCachedMaterial) NGCachedMaterial = NGOriginalMaterial();
+        if (NGMaterialBlurEnabled) NGCachedMaterial=NGBlurMaterial(NGCachedMaterial,NGMaterialBlurStrength);
     }
     return NGCachedMaterial;
 }
@@ -185,7 +187,6 @@ static void NGApplyBackdropOutline(UIView *child, CGRect joined, BOOL enabled) {
     child.layer.mask=state.container;
     [CATransaction commit];
 }
-#import "BackgroundBlur.h"
 
 static void NGApply(UIVisualEffectView *host) {
     if (!host.window || CGRectIsEmpty(host.bounds)) return;
@@ -220,7 +221,6 @@ static void NGApply(UIVisualEffectView *host) {
     clip.hidden=sharedArrow;
     BOOL applyOutline=!sharedArrow && !original && CGRectGetWidth(joined)>=200 && CGRectGetHeight(joined)>=100;
     if (host.effect) host.effect = nil;
-    NGApplyBackgroundBlur(host,joined,sharedArrow);
     // Single-variable test: only the direct system backdrop child.
     Class backdropHostClass = NSClassFromString(@"UIKBBackdropView");
     Class backdropChildClass = NSClassFromString(@"_UIVisualEffectBackdropView");
@@ -287,6 +287,18 @@ static void NGInstallCandidateHooks(void) {
         hook(arrowClass,selector,(IMP)NGArrowLayout,(IMP *)&NGOriginalArrowLayout);
     }
 }
+static void NGInstallBackdropHook(void) {
+        Class cls=NSClassFromString(@"UIKBBackdropView");
+        SEL sel=@selector(layoutSubviews);
+        if (!cls || ![cls isSubclassOfClass:UIVisualEffectView.class] || !NGHasVoidMethod(cls,sel)) return;
+        typedef void (*Hook)(Class,SEL,IMP,IMP *);
+        Hook hook=(Hook)dlsym(RTLD_DEFAULT,"MSHookMessageEx");
+        if (!hook) return;
+        static BOOL installed=NO;
+        if (installed) return;
+        installed=YES;
+        hook(cls,sel,(IMP)NGLayout,(IMP *)&NGOriginalLayout);
+}
 __attribute__((constructor)) static void NGInstall(void) {
     @autoreleasepool {
         CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL,
@@ -300,16 +312,7 @@ __attribute__((constructor)) static void NGInstall(void) {
         }
         NGInstallCandidateHooks();
         [NSNotificationCenter.defaultCenter addObserverForName:UIKeyboardWillShowNotification object:nil queue:NSOperationQueue.mainQueue
-            usingBlock:^(__unused NSNotification *note) { NGInstallCandidateHooks(); }];
-        Class cls=NSClassFromString(@"UIKBBackdropView");
-        SEL sel=@selector(layoutSubviews);
-        if (!cls || ![cls isSubclassOfClass:UIVisualEffectView.class] || !NGHasVoidMethod(cls,sel)) return;
-        typedef void (*Hook)(Class,SEL,IMP,IMP *);
-        Hook hook=(Hook)dlsym(RTLD_DEFAULT,"MSHookMessageEx");
-        if (!hook) return;
-        static BOOL installed=NO;
-        if (installed) return;
-        installed=YES;
-        hook(cls,sel,(IMP)NGLayout,(IMP *)&NGOriginalLayout);
+            usingBlock:^(__unused NSNotification *note) { NGInstallCandidateHooks(); NGInstallBackdropHook(); }];
+        NGInstallBackdropHook();
     }
 }
