@@ -156,7 +156,7 @@ final class TheseusRenderer: NSObject {
         currentRefractionQuality = TheseusSettings.shared.effectiveRefractionQuality
 
         displayLink = DisplayLinkDriver.shared.add(
-            framesPerSecond: .fps(15) // bounded keyboard experiment,
+            framesPerSecond: .fps(15), // bounded keyboard experiment
             priority: .render
         ) { [weak self] _ in
             self?.render()
