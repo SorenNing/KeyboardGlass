@@ -20,6 +20,7 @@ static UIImage *NGOriginalMaterial(void) {
     return image;
 }
 static UIImage *NGCachedMaterial;
+static UIImage *NGCachedOutline;
 static NSDictionary *NGValues;
 static NSString *NGSkin;
 static CGFloat NGSystemAlpha = 1.0;
@@ -30,6 +31,7 @@ static void NGReadPrefs(void) {
     NGValues = NGEffectiveValues(NGSkin);
     NGSystemAlpha = NGNumber(NGCopyPreference(@"SystemAlpha"), 1, 0, 1);
     NGCachedMaterial = nil;
+    NGCachedOutline = nil;
 }
 static UIImage *NGMaterial(void) {
     if (!NGValues) NGReadPrefs();
@@ -44,6 +46,14 @@ static UIImage *NGMaterial(void) {
 // Each region crops the same original image; no material or key views change.
 static const void *NGClipKey = &NGClipKey;
 static BOOL NGUpdating = NO;
+static const void *NGOutlineStateKey = &NGOutlineStateKey;
+@interface NGBackdropOutlineState : NSObject
+@property(nonatomic, strong) CALayer *container;
+@property(nonatomic, strong) CALayer *outline;
+
+@end
+@implementation NGBackdropOutlineState
+@end
 static void NGCollect(UIView *root, NSMutableArray<UIVisualEffectView *> *out, NSUInteger depth) {
     if (!root || depth > 12 || root.hidden || root.alpha <= 0.0) return;
     if ([NSStringFromClass(root.class) containsString:@"KeyboardDock"]) return;
@@ -82,6 +92,47 @@ static CGRect NGJoinedRect(UIVisualEffectView *host) {
     }
     return joined;
 }
+static void NGApplyBackdropOutline(UIView *child, CGRect joined, BOOL enabled) {
+    NGBackdropOutlineState *state=objc_getAssociatedObject(child,NGOutlineStateKey);
+    if (!enabled) {
+        if (state && child.layer.mask==state.container) {
+            [CATransaction begin];
+            [CATransaction setDisableActions:YES];
+            child.layer.mask=nil;
+            state.outline.mask=nil;
+            [CATransaction commit];
+        }
+        objc_setAssociatedObject(child,NGOutlineStateKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        return;
+    }
+    if (!NGCachedOutline) NGCachedOutline=NGDrawOutline(NGValues);
+    UIImage *image=NGCachedOutline;
+    if (!image) return;
+    if (!state) {
+        state=[NGBackdropOutlineState new];
+        state.container=[CALayer layer];
+        state.outline=[CALayer layer];
+        state.container.masksToBounds=YES;
+        [state.container addSublayer:state.outline];
+        objc_setAssociatedObject(child,NGOutlineStateKey,state,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    // Do not replace an unexpected native mask. Current device evidence has mask=nil.
+    if (child.layer.mask && child.layer.mask!=state.container) return;
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    state.container.frame=child.bounds;
+    state.outline.contents=(__bridge id)image.CGImage;
+    state.outline.contentsScale=image.scale;
+    state.outline.contentsGravity=kCAGravityResize;
+    UIEdgeInsets caps=image.capInsets;
+    CGSize size=image.size;
+    state.outline.contentsCenter=CGRectMake(caps.left/size.width,caps.top/size.height,
+        (size.width-caps.left-caps.right)/size.width,(size.height-caps.top-caps.bottom)/size.height);
+    // Every joined backdrop sees a crop of one common outline, including internal seams.
+    state.outline.frame=[child convertRect:joined fromView:child.window];
+    child.layer.mask=state.container;
+    [CATransaction commit];
+}
 static void NGApply(UIVisualEffectView *host) {
     if (!host.window || CGRectIsEmpty(host.bounds)) return;
     if (!NGHosts) NGHosts = [NSHashTable weakObjectsHashTable];
@@ -108,7 +159,10 @@ static void NGApply(UIVisualEffectView *host) {
     }
     if (view.image != material) view.image = material;
     clip.frame = host.contentView.bounds;
-    view.frame = [clip convertRect:NGJoinedRect(host) fromView:host.window];
+    CGRect joined=NGJoinedRect(host);
+    view.frame = [clip convertRect:joined fromView:host.window];
+    BOOL original=[NGSkin isEqualToString:@"default"] && NGOverridesForSkin(NGSkin).count==0;
+    BOOL applyOutline=!original && CGRectGetWidth(joined)>=200 && CGRectGetHeight(joined)>=100;
     if (host.effect) host.effect = nil;
     // Single-variable test: only the direct system backdrop child.
     Class backdropHostClass = NSClassFromString(@"UIKBBackdropView");
@@ -118,6 +172,7 @@ static void NGApply(UIVisualEffectView *host) {
             if (object_getClass(child) == backdropChildClass) {
                 child.hidden = NO;
                 child.alpha = NGSystemAlpha;
+                NGApplyBackdropOutline(child,joined,applyOutline);
             }
         }
     }

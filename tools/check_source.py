@@ -19,7 +19,7 @@ renderer=(P/'GlassRenderer.h').read_text();model=(P/'GlassPreferences.h').read_t
 for key in keys:
  assert key in model or key=='SystemAlpha'
  if key!='SystemAlpha':assert key in renderer
-s=renderer[renderer.index('static inline double NGGlassDistance'):renderer.index('static inline UIImage *NGDrawGlass')]
+s=renderer[renderer.index('static inline double NGGlassDistance'):renderer.index('static inline UIImage *NGDrawOutline')]
 code='#include <math.h>\n#include <assert.h>\n'+s+'''\nint main(void) {
  for(int r=0;r<=40;r++) for(int p=20;p<=50;p++) {
   double n=p/10.0;

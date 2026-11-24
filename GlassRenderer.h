@@ -15,6 +15,32 @@ static inline void NGOver(double *r, double *g, double *b, double *a,
     *r = nr*na + *r*(1-na); *g = ng*na + *g*(1-na);
     *b = nb*na + *b*(1-na); *a = na + *a*(1-na);
 }
+// Opaque body mask: independent of tint, material opacity and highlight alpha.
+static inline UIImage *NGDrawOutline(NSDictionary *v) {
+    const size_t side=256, stride=side*4;
+    unsigned char *pixels=calloc(side,stride);
+    if (!pixels) return nil;
+    double radius=[v[@"CornerRadius"] doubleValue], shape=[v[@"CornerShape"] doubleValue];
+    double softness=[v[@"EdgeSoftness"] doubleValue];
+    double margin=[v[@"OuterShadow"] doubleValue]>0 ? 6 : 0;
+    for (size_t y=0;y<side;y++) for (size_t x=0;x<side;x++) {
+        double d=NGGlassDistance((x+.5)/2,(y+.5)/2,64,radius,shape)-margin;
+        double coverage=d>=-.5 ? fmin(1,fmax(0,(d+.5)/fmax(.5,softness))) : 0;
+        unsigned char a=(unsigned char)lrint(coverage*255);
+        size_t o=y*stride+x*4;
+        pixels[o]=pixels[o+1]=pixels[o+2]=pixels[o+3]=a;
+    }
+    CGColorSpaceRef space=CGColorSpaceCreateDeviceRGB();
+    CGContextRef context=CGBitmapContextCreate(pixels,side,side,8,stride,space,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(space);
+    CGImageRef image=context ? CGBitmapContextCreateImage(context) : NULL;
+    UIImage *result=image ? [UIImage imageWithCGImage:image scale:2 orientation:UIImageOrientationUp] : nil;
+    if (image) CGImageRelease(image);
+    if (context) CGContextRelease(context);
+    free(pixels);
+    CGFloat cap=MAX(28,MIN(56,radius+16));
+    return [result resizableImageWithCapInsets:UIEdgeInsetsMake(cap,cap,cap,cap) resizingMode:UIImageResizingModeStretch];
+}
 static inline UIImage *NGDrawGlass(NSDictionary *v) {
     const size_t side = 256, stride = side*4;
     unsigned char *pixels = calloc(side,stride);
