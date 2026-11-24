@@ -25,7 +25,7 @@ for i,row in enumerate(root):
   assert root[i-1]['label']==row['label'] and root[i-1]['cell']=='PSGroupCell'
   assert row['min']<=row['default']<=row['max']
 assert next(x for x in sliders if x['key']=='SystemAlpha')['default']==1
-choices=next(x for x in root if x['cell']=='PSLinkListCell');assert len(choices['validValues'])==7
+choices=next(x for x in root if x['cell']=='PSLinkListCell');assert choices['validValues']==['default','clear'] and choices['validTitles']==['当前原版','清透薄玻璃']
 switches=[x for x in root if x['cell']=='PSSwitchCell' and x.get('key')=='HideCandidateControls']
 assert len(switches)==1 and switches[0]['default'] is False
 assert len(root)==50 and sum(x['cell']=='PSGroupCell' for x in root)==27
@@ -64,4 +64,4 @@ with tempfile.TemporaryDirectory() as t:
  f=pathlib.Path(t)/'geometry.c';f.write_text(code);exe=pathlib.Path(t)/'check'
  subprocess.run(['cc','-Wall','-Wextra','-Werror',str(f),'-lm','-o',str(exe)],check=True)
  subprocess.run([str(exe)],check=True)
-print('PASS: 17 sliders, 7 skins, visible labels, default alpha 1.0, finite/symmetric production corner geometry and premultiplied compositing')
+print('PASS: 17 sliders, 2 skins, visible labels, default alpha 1.0, finite/symmetric production corner geometry and premultiplied compositing')

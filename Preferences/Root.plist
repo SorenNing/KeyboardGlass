@@ -31,21 +31,11 @@
 			<array>
 				<string>default</string>
 				<string>clear</string>
-				<string>frost</string>
-				<string>crystal</string>
-				<string>ice</string>
-				<string>smoke</string>
-				<string>liquid</string>
 			</array>
 			<key>validTitles</key>
 			<array>
 				<string>当前原版</string>
 				<string>清透薄玻璃</string>
-				<string>柔白磨砂</string>
-				<string>厚实水晶</string>
-				<string>冷色冰晶</string>
-				<string>烟灰玻璃</string>
-				<string>液态玻璃</string>
 			</array>
 			<key>get</key>
 			<string>readPreferenceValue:</string>

@@ -1,7 +1,7 @@
-import subprocess,pathlib,struct,tarfile,io,gzip,hashlib,json,plistlib
+import subprocess,pathlib,struct,tarfile,io,gzip,lzma,hashlib,json,plistlib
 P=pathlib.Path(__file__).resolve().parent
 O=P/'dist';O.mkdir(exist_ok=True)
-VERSION='0.2.4'
+VERSION='0.2.5'
 MIN_IOS='16.0'
 def run(a):subprocess.run(a,check=True,cwd=P)
 sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()
@@ -54,20 +54,18 @@ for scheme,arch,prefix in [('rootless','arm64','var/jb/'),('roothide','arm64e','
  entryPath=prefix+'Library/PreferenceLoader/Preferences/KeyboardGlass.plist'
  files[entryPath]=(P/'Preferences/entry.plist').read_bytes()
  for name in ['icon.png','icon@2x.png','icon@3x.png']:files[bundle+name]=(P/'Resources/Icons'/name).read_bytes()
- for name,suffix in [('package.png',''),('package-256.png','-256'),('package-128.png','-128')]:
-  files[prefix+'usr/share/icons/com.ning.keyboardglass'+suffix+'.png']=(P/'Resources/Icons'/name).read_bytes()
  policy=plistlib.loads((P/'Resources/KeyboardGlass_ReadConfig.plist').read_bytes())
  host='/var/mobile/Library/Accessibility/KeyboardGlass-preferences.plist'
  assert policy=={'AllowedProcesses':['*'],'Extensions':[{'type':'file','extension_class':'com.apple.app-sandbox.read','path':'/rootfs'+host}]}
  if scheme=='rootless':policy['Extensions'][0]['path']=host
  policyPath=prefix+'Library/libSandy/KeyboardGlass_ReadConfig.plist'
  files[policyPath]=plistlib.dumps(policy)
- icon='file:///'+prefix+'usr/share/icons/com.ning.keyboardglass.png'
- control=(f'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: {VERSION}\nArchitecture: iphoneos-{arch}\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nIcon: {icon}\nDepends: firmware (>= {MIN_IOS}), mobilesubstrate, preferenceloader, com.opa334.libsandy\nDescription: Adjustable glass material for system keyboards on iOS 16 and 17.\nInstalled-Size: {sum((len(v)+1023)//1024 for v in files.values())}\n').encode()
+ control=(f'Package: com.ning.keyboardglass\nName: Ning Keyboard Glass\nVersion: {VERSION}\nArchitecture: iphoneos-{arch}\nMaintainer: Ning\nAuthor: Ning\nSection: Tweaks\nDepends: firmware (>= {MIN_IOS}), mobilesubstrate, preferenceloader, com.opa334.libsandy\nDescription: Adjustable glass material for system keyboards on iOS 16 and 17.\nInstalled-Size: {sum((len(v)+1023)//1024 for v in files.values())}\n').encode()
  md=''.join(hashlib.md5(v).hexdigest()+'  '+k+'\n' for k,v in files.items()).encode()
- parts={'debian-binary':b'2.0\n','control.tar.gz':tar({'control':control,'md5sums':md},set()),'data.tar.gz':tar(files,set(binaries))}
+ data_archive=lzma.compress(gzip.decompress(tar(files,set(binaries))),preset=9)
+ parts={'debian-binary':b'2.0\n','control.tar.gz':tar({'control':control,'md5sums':md},set()),'data.tar.xz':data_archive}
  out=pack(parts);deb=O/f'com.ning.keyboardglass_{VERSION}_iphoneos-{arch}.deb';deb.write_bytes(out)
- with tarfile.open(fileobj=io.BytesIO(parts['data.tar.gz']),mode='r:gz') as t:
+ with tarfile.open(fileobj=io.BytesIO(parts['data.tar.xz']),mode='r:xz') as t:
   info=plistlib.loads(t.extractfile('./'+bundle+'Info.plist').read());entry=plistlib.loads(t.extractfile('./'+entryPath).read())['entry']
   assert info['CFBundleVersion']==VERSION and entry.get('isController') is True and entry['icon']=='icon.png'
   assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
@@ -76,7 +74,8 @@ for scheme,arch,prefix in [('rootless','arm64','var/jb/'),('roothide','arm64e','
   for name,data in files.items():assert t.extractfile('./'+name).read()==data
   for name in binaries:
    path=B/'extracted-check';path.write_bytes(t.extractfile('./'+name).read());verify_macho(path,arch);path.unlink()
- assert len(files)==13
+ assert len(files)==10 and all('/usr/share/icons/' not in name for name in files)
+ assert b'\nIcon:' not in control and len(out)<=60*1024, 'deb exceeds 60 KiB target'
  if prefix:assert all(name.startswith(prefix) for name in files)
  else:assert all(not name.startswith('var/jb/') for name in files)
  receipts.append({'version':VERSION,'scheme':scheme,'architecture':'iphoneos-'+arch,'cpusubtype':hex(0x80000002 if arch=='arm64e' else 0),'minimum_ios':MIN_IOS,'file':deb.name,'size':len(out),'sha256':hashlib.sha256(out).hexdigest(),'payload_files':len(files),'strict_signature':True,'runtime_tested':False,'profile_path':policy['Extensions'][0]['path']})

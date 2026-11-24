@@ -3,7 +3,7 @@ from PIL import Image
 import hashlib,json
 P=Path(__file__).resolve().parents[1];R=P/'Resources/Icons';R.mkdir(parents=True,exist_ok=True)
 im=Image.open(R/'master.png').convert('RGBA');assert im.size==(512,512)
-outputs={'package.png':512,'package-256.png':256,'package-128.png':128,'icon.png':29,'icon@2x.png':58,'icon@3x.png':87}
+outputs={'icon.png':29,'icon@2x.png':58,'icon@3x.png':87}
 manifest={}
 for name,size in outputs.items():
  image=im.resize((size,size),Image.Resampling.LANCZOS)

@@ -1,6 +1,6 @@
 import pathlib,plistlib
 P=pathlib.Path(__file__).resolve().parents[1];D=P/'Preferences';D.mkdir(exist_ok=True)
-styles=[('default','当前原版'),('clear','清透薄玻璃'),('frost','柔白磨砂'),('crystal','厚实水晶'),('ice','冷色冰晶'),('smoke','烟灰玻璃'),('liquid','液态玻璃')]
+styles=[('default','当前原版'),('clear','清透薄玻璃')]
 items=[]
 def group(label,footer=None):
  a={'cell':'PSGroupCell','label':label}
@@ -29,5 +29,5 @@ group('轮廓','圆角单位为 pt；边缘形状由圆润（2）逐渐变为更
 slider('CornerRadius','圆角大小',0.,40.,14.);slider('CornerShape','边缘形状',2.,5.,2.)
 group('恢复默认','恢复材质预设会清除所有皮肤共用的手动微调，保留系统背景透明度、素材模糊和隐藏开关。恢复全部会回到原版皮肤，系统背景 alpha 恢复 1，隐藏与模糊开关关闭。')
 items.extend([{'cell':'PSButtonCell','label':'恢复材质预设','action':'resetCurrentSkin'},{'cell':'PSButtonCell','label':'恢复全部默认','action':'resetAll'},{'cell':'PSGroupCell','footerText':'Ning · 静态玻璃材质，不提供实时折射。'}])
-for name,data in [('Root.plist',{'title':'键盘玻璃','items':items}),('Info.plist',{'CFBundleIdentifier':'com.ning.keyboardglass.preferences','CFBundleName':'KeyboardGlassPrefs','CFBundleExecutable':'KeyboardGlassPrefs','CFBundlePackageType':'BNDL','CFBundleVersion':'0.2.4','CFBundleShortVersionString':'0.2.4','NSPrincipalClass':'NGKeyboardGlassPrefsController'}),('entry.plist',{'entry':{'bundle':'KeyboardGlassPrefs','isController':True,'icon':'icon.png','cell':'PSLinkCell','detail':'NGKeyboardGlassPrefsController','label':'键盘玻璃'}})]: (D/name).write_bytes(plistlib.dumps(data,sort_keys=False))
+for name,data in [('Root.plist',{'title':'键盘玻璃','items':items}),('Info.plist',{'CFBundleIdentifier':'com.ning.keyboardglass.preferences','CFBundleName':'KeyboardGlassPrefs','CFBundleExecutable':'KeyboardGlassPrefs','CFBundlePackageType':'BNDL','CFBundleVersion':'0.2.5','CFBundleShortVersionString':'0.2.5','NSPrincipalClass':'NGKeyboardGlassPrefsController'}),('entry.plist',{'entry':{'bundle':'KeyboardGlassPrefs','isController':True,'icon':'icon.png','cell':'PSLinkCell','detail':'NGKeyboardGlassPrefsController','label':'键盘玻璃'}})]: (D/name).write_bytes(plistlib.dumps(data,sort_keys=False))
 print('settings',len(items),'rows; sliders',sum(x['cell']=='PSSliderCell' for x in items))

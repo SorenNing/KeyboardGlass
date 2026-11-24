@@ -23,6 +23,7 @@ int main(int argc,const char *argv[]) {
    NSError *error=nil;NSCAssert(NGPublishGlobalSnapshot(&error),@"publish failed %@",error);
    CFPreferencesSetAppValue(CFSTR("Skin"),CFSTR("liquid"),(__bridge CFStringRef)NGDomain);
    NGMigrateSharedOverrides();
+   NSCAssert([NGNormalizeSkin(@"liquid") isEqual:@"clear"],@"retired skin fallback failed");
    id migrated=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Overrides"),(__bridge CFStringRef)NGDomain));
    NSCAssert([migrated[@"*"][@"CornerRadius"] doubleValue]==31,@"skin switch lost shared radius");
    CFPreferencesSetAppValue(CFSTR("Skin"),CFSTR("clear"),(__bridge CFStringRef)NGDomain);
@@ -41,8 +42,10 @@ int main(int argc,const char *argv[]) {
    NSCAssert(NGValidateSnapshot(@{@"Schema":@1,@"Configuration":@{@"Skin":@"clear",@"SystemAlpha":@1,@"Overrides":@{}}})!=nil,@"legacy snapshot rejected");
    NSCAssert(fabs([NGCopyPreference(@"SystemAlpha") doubleValue]-.42)<1e-6,@"alpha not shared");
    NSCAssert([NGEffectiveValues(NGSelectedSkin())[@"CornerRadius"] doubleValue]==31,@"radius not shared");
-   NSCAssert([NGEffectiveValues(@"liquid")[@"CornerRadius"] doubleValue]==31,@"new skin reset adjusted radius");
-   NSCAssert(fabs([NGEffectiveValues(@"liquid")[@"HighlightBrightness"] doubleValue]-.75)<1e-6,@"untouched preset field lost");
+   NSCAssert([NGEffectiveValues(@"clear")[@"CornerRadius"] doubleValue]==31,@"skin reset adjusted radius");
+   NSCAssert([NGNormalizeSkin(@"liquid") isEqual:@"clear"],@"retired skin did not fall back to clear");
+   NSCAssert([NGNormalizeSkin(@"unknown") isEqual:@"default"],@"unknown skin should use original");
+   NSCAssert(fabs([NGEffectiveValues(@"clear")[@"HighlightBrightness"] doubleValue]-.3)<1e-6,@"untouched clear preset field lost");
    NSCAssert([@"corrupt" writeToFile:NGSnapshotPath atomically:YES encoding:NSUTF8StringEncoding error:nil],@"corrupt fixture failed");
    NSCAssert(!NGLoadGlobalSnapshot(),@"bad plist accepted");
    NSCAssert([NGSelectedSkin() isEqual:@"clear"],@"lost last good config");

@@ -1,18 +1,6 @@
 {
   "style": "A ice-blue approved",
   "outputs": {
-    "package.png": {
-      "size": 512,
-      "sha256": "bf564ba05c8f21482c225c37ed154d87c329eeda54cfcb326051bd3136ff1386"
-    },
-    "package-256.png": {
-      "size": 256,
-      "sha256": "f934732c6468dec273128a796b7582cd0d37ab8f2bf266d7569939fd22a1fecc"
-    },
-    "package-128.png": {
-      "size": 128,
-      "sha256": "6c4c5be8ecd2d0268c283f38c7e89c576fba7c8532c618c7e677548f0683c7ff"
-    },
     "icon.png": {
       "size": 29,
       "sha256": "4aa65f1d80434e7bcda1cfa914cbc6b0c3c99642e4801ac0f50ee6165aa87ac3"

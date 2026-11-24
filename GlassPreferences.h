@@ -37,7 +37,13 @@ static inline int NGAcquireConfigReadAccess(void) {
 static NSString *const NGDomain = @"com.ning.keyboardglass";
 static NSString *const NGChanged = @"com.ning.keyboardglass/ReloadPrefs";
 static inline NSArray<NSString *> *NGSkinIDs(void) {
-    return @[@"default", @"clear", @"frost", @"crystal", @"ice", @"smoke", @"liquid"];
+    return @[@"default", @"clear"];
+}
+// Preserve existing user adjustments when upgrading from retired presets.
+static inline NSString *NGNormalizeSkin(id skin) {
+    if ([NGSkinIDs() containsObject:skin]) return skin;
+    if ([skin isKindOfClass:NSString.class] && [@[@"frost",@"crystal",@"ice",@"smoke",@"liquid"] containsObject:skin]) return @"clear";
+    return @"default";
 }
 static inline NSDictionary<NSString *, NSNumber *> *NGBaseValues(NSString *skin) {
     NSMutableDictionary *v = [@{@"BodyRed":@1, @"BodyGreen":@1, @"BodyBlue":@1,
@@ -46,11 +52,6 @@ static inline NSDictionary<NSString *, NSNumber *> *NGBaseValues(NSString *skin)
         @"HighlightWidth":@2, @"InnerShadow":@0, @"OuterShadow":@0,
         @"EdgeSoftness":@0.4, @"CornerRadius":@14, @"CornerShape":@2} mutableCopy];
     if ([skin isEqual:@"clear"]) [v addEntriesFromDictionary:@{@"BodyOpacity":@0.025,@"HighlightBrightness":@0.3,@"HighlightThickness":@0.5}];
-    if ([skin isEqual:@"frost"]) [v addEntriesFromDictionary:@{@"BodyOpacity":@0.2,@"BodyBlue":@0.99,@"HighlightBrightness":@0.25,@"HighlightWidth":@4,@"EdgeSoftness":@1.5}];
-    if ([skin isEqual:@"crystal"]) [v addEntriesFromDictionary:@{@"BodyOpacity":@0.05,@"HighlightThickness":@1.6,@"HighlightBrightness":@0.8,@"HighlightWidth":@6,@"InnerShadow":@0.25,@"OuterShadow":@0.15}];
-    if ([skin isEqual:@"ice"]) [v addEntriesFromDictionary:@{@"BodyRed":@0.7,@"BodyGreen":@0.87,@"BodyBlue":@1,@"BodyOpacity":@0.13,@"HighlightBrightness":@0.6,@"GradientStrength":@0.12}];
-    if ([skin isEqual:@"smoke"]) [v addEntriesFromDictionary:@{@"BodyRed":@0.15,@"BodyGreen":@0.18,@"BodyBlue":@0.23,@"BodyOpacity":@0.3,@"HighlightBrightness":@0.3,@"InnerShadow":@0.2}];
-    if ([skin isEqual:@"liquid"]) [v addEntriesFromDictionary:@{@"BodyOpacity":@0.059,@"HighlightThickness":@1.2,@"HighlightBrightness":@0.75,@"HighlightWidth":@5,@"InnerShadow":@0.24,@"OuterShadow":@0.08,@"GradientStrength":@0.12,@"EdgeSoftness":@0.6,@"CornerShape":@2.8}];
     return v;
 }
 static inline NSDictionary *NGLimits(void) {
@@ -74,7 +75,7 @@ static inline NSDictionary *NGValidateSnapshot(id envelope) {
         ![envelope[@"Schema"] isEqual:@1]) return nil;
     id config=envelope[@"Configuration"];
     if (![config isKindOfClass:NSDictionary.class]) return nil;
-    if (![NGSkinIDs() containsObject:config[@"Skin"]] ||
+    if (![config[@"Skin"] isKindOfClass:NSString.class] ||
         ![config[@"SystemAlpha"] isKindOfClass:NSNumber.class] ||
         ![config[@"Overrides"] isKindOfClass:NSDictionary.class]) return nil;
     // Optional for compatibility with snapshots published by 0.1.16 and earlier.
@@ -124,7 +125,7 @@ static inline void NGMigrateSharedOverrides(void) {
     id saved=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Overrides"),(__bridge CFStringRef)NGDomain));
     if ([saved isKindOfClass:NSDictionary.class] && [saved[@"*"] isKindOfClass:NSDictionary.class]) return;
     id skin=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("Skin"),(__bridge CFStringRef)NGDomain));
-    if (![NGSkinIDs() containsObject:skin]) skin=@"default";
+    if (![skin isKindOfClass:NSString.class]) skin=@"default";
     NSMutableDictionary *all=[saved isKindOfClass:NSDictionary.class] ? [saved mutableCopy] : [NSMutableDictionary dictionary];
     id legacy=all[skin];
     all[@"*"]=[legacy isKindOfClass:NSDictionary.class] ? [legacy copy] : @{};
@@ -142,7 +143,7 @@ static inline BOOL NGPublishGlobalSnapshot(NSError **error) {
     id blur=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("MaterialBlurEnabled"),(__bridge CFStringRef)NGDomain));
     id strength=CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("MaterialBlurStrength"),(__bridge CFStringRef)NGDomain));
     NSDictionary *config=@{@"MaterialBlurEnabled":@([blur isKindOfClass:NSNumber.class] && [blur boolValue]),
-        @"MaterialBlurStrength":@(NGNumber(strength,0.5,0,1)),@"Skin":[NGSkinIDs() containsObject:skin] ? skin : @"default",
+        @"MaterialBlurStrength":@(NGNumber(strength,0.5,0,1)),@"Skin":NGNormalizeSkin(skin),
         @"HideCandidateHighlight":@([highlight isKindOfClass:NSNumber.class] && [highlight boolValue]),
         @"HideCandidateControls":@([hide isKindOfClass:NSNumber.class] && [hide boolValue]),
         @"SystemAlpha":@(NGNumber(alpha,1,0,1)),
@@ -159,7 +160,7 @@ static inline id NGCopyPreference(NSString *key) {
 }
 static inline NSString *NGSelectedSkin(void) {
     id skin = NGCopyPreference(@"Skin");
-    return [NGSkinIDs() containsObject:skin] ? skin : @"default";
+    return NGNormalizeSkin(skin);
 }
 // The '*' entry contains explicitly adjusted values shared by every skin.
 // Legacy data has only per-skin entries; use the active skin until Settings migrates it.
