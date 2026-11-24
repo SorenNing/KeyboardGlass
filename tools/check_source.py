@@ -6,6 +6,14 @@ assert entry.get('isController') is True, 'PreferenceLoader controller entry mus
 assert entry['cell']=='PSLinkCell' and entry['bundle']=='KeyboardGlassPrefs'
 assert entry['detail']==info['NSPrincipalClass']=='NGKeyboardGlassPrefsController'
 assert info['CFBundleExecutable']=='KeyboardGlassPrefs'
+assert entry['icon']=='icon.png'
+import json,hashlib,struct
+icons=P/'Resources/Icons'
+manifest=json.loads((icons/'manifest.json').read_text())['outputs']
+for name,item in manifest.items():
+ data=(icons/name).read_bytes()
+ assert hashlib.sha256(data).hexdigest()==item['sha256']
+ assert data[:8]==b'\x89PNG\r\n\x1a\n' and struct.unpack_from('>II',data,16)==(item['size'],item['size'])
 policy=plistlib.loads((P/'Resources/KeyboardGlass_ReadConfig.plist').read_bytes())
 assert policy['AllowedProcesses']==['*'], 'Configuration access must cover all host Apps'
 assert policy['Extensions']==[{'type':'file','extension_class':'com.apple.app-sandbox.read','path':'/rootfs/var/mobile/Library/Accessibility/KeyboardGlass-preferences.plist'}], 'Grant read-only access to the exact host file on RootHide'
