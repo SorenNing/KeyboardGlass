@@ -7,8 +7,7 @@ def group(label,footer=None):
  if footer:a['footerText']=footer
  items.append(a)
 def slider(key,label,lo,hi,default):
- group(label)
- items.append({'cell':'PSSliderCell','label':label,'key':key,'defaults':'com.ning.keyboardglass','min':lo,'max':hi,'default':default,'showValue':True,'get':'readPreferenceValue:','set':'setPreferenceValue:specifier:'})
+ items.append({'cell':'PSSliderCell','cellClass':'NGGlassSliderCell','height':92,'label':label,'key':key,'defaults':'com.ning.keyboardglass','min':lo,'max':hi,'default':default,'showValue':True,'get':'readPreferenceValue:','set':'setPreferenceValue:specifier:'})
 group('皮肤预设','换皮肤保留所有手动微调值；未调过的项目使用新皮肤预设。已有微调会从升级时当前皮肤迁移。')
 items.append({'cell':'PSLinkListCell','label':'玻璃皮肤','detail':'PSListItemsController','key':'Skin','defaults':'com.ning.keyboardglass','default':'default','validValues':[k for k,v in styles],'validTitles':[v for k,v in styles],'get':'readPreferenceValue:','set':'setPreferenceValue:specifier:'})
 group('候选栏','同时隐藏右上角向下箭头和它旁边的竖分割线。关闭后恢复系统显示状态；不改变候选文字和键盘布局。')
@@ -29,5 +28,5 @@ group('轮廓','圆角单位为 pt；边缘形状由圆润（2）逐渐变为更
 slider('CornerRadius','圆角大小',0.,40.,14.);slider('CornerShape','边缘形状',2.,5.,2.)
 group('恢复默认','恢复材质预设会清除所有皮肤共用的手动微调，保留系统背景透明度、素材模糊和隐藏开关。恢复全部会回到原版皮肤，系统背景 alpha 恢复 1，隐藏与模糊开关关闭。')
 items.extend([{'cell':'PSButtonCell','label':'恢复材质预设','action':'resetCurrentSkin'},{'cell':'PSButtonCell','label':'恢复全部默认','action':'resetAll'},{'cell':'PSGroupCell','footerText':'Ning · 静态玻璃材质，不提供实时折射。'}])
-for name,data in [('Root.plist',{'title':'键盘玻璃','items':items}),('Info.plist',{'CFBundleIdentifier':'com.ning.keyboardglass.preferences','CFBundleName':'KeyboardGlassPrefs','CFBundleExecutable':'KeyboardGlassPrefs','CFBundlePackageType':'BNDL','CFBundleVersion':'0.2.5','CFBundleShortVersionString':'0.2.5','NSPrincipalClass':'NGKeyboardGlassPrefsController'}),('entry.plist',{'entry':{'bundle':'KeyboardGlassPrefs','isController':True,'icon':'icon.png','cell':'PSLinkCell','detail':'NGKeyboardGlassPrefsController','label':'键盘玻璃'}})]: (D/name).write_bytes(plistlib.dumps(data,sort_keys=False))
+for name,data in [('Root.plist',{'title':'键盘玻璃','items':items}),('Info.plist',{'CFBundleIdentifier':'com.ning.keyboardglass.preferences','CFBundleName':'KeyboardGlassPrefs','CFBundleExecutable':'KeyboardGlassPrefs','CFBundlePackageType':'BNDL','CFBundleVersion':'0.2.6','CFBundleShortVersionString':'0.2.6','NSPrincipalClass':'NGKeyboardGlassPrefsController'}),('entry.plist',{'entry':{'bundle':'KeyboardGlassPrefs','isController':True,'icon':'icon.png','cell':'PSLinkCell','detail':'NGKeyboardGlassPrefsController','label':'键盘玻璃'}})]: (D/name).write_bytes(plistlib.dumps(data,sort_keys=False))
 print('settings',len(items),'rows; sliders',sum(x['cell']=='PSSliderCell' for x in items))

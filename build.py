@@ -1,7 +1,7 @@
 import subprocess,pathlib,struct,tarfile,io,gzip,lzma,hashlib,json,plistlib
 P=pathlib.Path(__file__).resolve().parent
 O=P/'dist';O.mkdir(exist_ok=True)
-VERSION='0.2.5'
+VERSION='0.2.6'
 MIN_IOS='16.0'
 def run(a):subprocess.run(a,check=True,cwd=P)
 sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()
@@ -38,6 +38,7 @@ def verify_macho(path,arch):
  return data
 receipts=[]
 for scheme,arch,prefix in [('rootless','arm64','var/jb/'),('roothide','arm64e','')]:
+ if arch!='arm64e':continue  # This release is authorized for RootHide only.
  B=O/scheme;B.mkdir(exist_ok=True)
  engine=B/'NingKeyboardGlass.dylib';prefs=B/'KeyboardGlassPrefs'
  flags=['xcrun','--sdk','iphoneos','clang','-target',arch+'-apple-ios'+MIN_IOS,'-isysroot',sdk,'-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror','-Wunguarded-availability']

@@ -22,13 +22,26 @@ sliders=[x for x in root if x['cell']=='PSSliderCell'];assert len(sliders)==17
 keys=[x['key'] for x in sliders];assert len(keys)==len(set(keys))
 for i,row in enumerate(root):
  if row['cell']=='PSSliderCell':
-  assert root[i-1]['label']==row['label'] and root[i-1]['cell']=='PSGroupCell'
+  assert row['cellClass']=='NGGlassSliderCell' and row['height']==92 and row['label']
   assert row['min']<=row['default']<=row['max']
 assert next(x for x in sliders if x['key']=='SystemAlpha')['default']==1
 choices=next(x for x in root if x['cell']=='PSLinkListCell');assert choices['validValues']==['default','clear'] and choices['validTitles']==['当前原版','清透薄玻璃']
 switches=[x for x in root if x['cell']=='PSSwitchCell' and x.get('key')=='HideCandidateControls']
 assert len(switches)==1 and switches[0]['default'] is False
-assert len(root)==50 and sum(x['cell']=='PSGroupCell' for x in root)==27
+assert len(root)==33 and sum(x['cell']=='PSGroupCell' for x in root)==10
+# Every functional group owns a single continuous card; headings never split sliders.
+cards={}; current=None
+for row in root:
+ if row['cell']=='PSGroupCell':
+  current=row.get('label','footer');cards[current]=[]
+ else: cards[current].append(row.get('key',row.get('action')))
+assert cards['玻璃底面']==['BodyRed','BodyGreen','BodyBlue','BodyOpacity','BodyBrightness','GradientStrength','GradientAngle']
+assert cards['边缘高光']==['HighlightThickness','HighlightBrightness','HighlightWidth']
+assert cards['立体感']==['InnerShadow','OuterShadow','EdgeSoftness']
+assert cards['轮廓']==['CornerRadius','CornerShape']
+assert cards['玻璃素材模糊']==['MaterialBlurEnabled','MaterialBlurStrength']
+assert cards['候选栏']==['HideCandidateControls','HideCandidateHighlight']
+assert cards['恢复默认']==['resetCurrentSkin','resetAll']
 blur=next(x for x in root if x.get('key')=='MaterialBlurEnabled')
 strength=next(x for x in sliders if x['key']=='MaterialBlurStrength')
 assert blur['cell']=='PSSwitchCell' and blur['default'] is False

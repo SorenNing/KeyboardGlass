@@ -3,6 +3,7 @@
 
 @interface PSSpecifier : NSObject
 - (id)propertyForKey:(NSString *)key;
+- (NSString *)name;
 @end
 @interface PSViewController : UIViewController
 @end
@@ -20,7 +21,10 @@
 @property(nonatomic, strong) id ngActiveObserver;
 - (void)ngRebuildSpecifierState;
 - (void)ngRefreshVisibleSettings;
+- (id)readPreferenceValue:(PSSpecifier *)specifier;
+- (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier;
 @end
+#import "NGGlassSliderCell.h"
 @implementation NGKeyboardGlassPrefsController
 - (NSBundle *)bundle {
     return [NSBundle bundleForClass:NGKeyboardGlassPrefsController.class];

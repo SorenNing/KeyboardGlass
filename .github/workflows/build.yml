@@ -27,7 +27,7 @@ jobs:
         run: python3 build.py
       - uses: actions/upload-artifact@v4
         with:
-          name: keyboard-glass-0.2.5-both
+          name: keyboard-glass-0.2.6-arm64e
           path: |
             dist/*.deb
             dist/verification.json

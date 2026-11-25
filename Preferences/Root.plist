@@ -92,13 +92,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>系统背景透明度</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>系统背景透明度</string>
 			<key>key</key>
@@ -144,13 +142,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>素材模糊强度</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>素材模糊强度</string>
 			<key>key</key>
@@ -180,13 +176,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>颜色 · 红</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>颜色 · 红</string>
 			<key>key</key>
@@ -208,13 +202,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>颜色 · 绿</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>颜色 · 绿</string>
 			<key>key</key>
@@ -236,13 +228,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>颜色 · 蓝</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>颜色 · 蓝</string>
 			<key>key</key>
@@ -264,13 +254,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>玻璃底面透明度</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>玻璃底面透明度</string>
 			<key>key</key>
@@ -292,13 +280,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>底面明暗</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>底面明暗</string>
 			<key>key</key>
@@ -320,13 +306,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>渐变强度</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>渐变强度</string>
 			<key>key</key>
@@ -348,13 +332,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>渐变方向（度）</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>渐变方向（度）</string>
 			<key>key</key>
@@ -382,13 +364,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>高光粗细</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>高光粗细</string>
 			<key>key</key>
@@ -410,13 +390,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>高光亮度</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>高光亮度</string>
 			<key>key</key>
@@ -438,13 +416,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>高光扩散宽度</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>高光扩散宽度</string>
 			<key>key</key>
@@ -474,13 +450,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>内阴影</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>内阴影</string>
 			<key>key</key>
@@ -502,13 +476,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>外阴影</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>外阴影</string>
 			<key>key</key>
@@ -530,13 +502,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>边缘柔化</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>边缘柔化</string>
 			<key>key</key>
@@ -566,13 +536,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>圆角大小</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>圆角大小</string>
 			<key>key</key>
@@ -594,13 +562,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>边缘形状</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>NGGlassSliderCell</string>
+			<key>height</key>
+			<integer>92</integer>
 			<key>label</key>
 			<string>边缘形状</string>
 			<key>key</key>

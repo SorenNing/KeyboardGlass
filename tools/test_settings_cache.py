@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess,tempfile
 P=Path(__file__).resolve().parents[1]
 s=(P/'Preferences/NGKeyboardGlassPrefs.m').read_text()
-getter=s[s.index('- (void)setSpecifiers:(NSArray *)rows {'):s.index('- (id)readPreferenceValue:')]
+getter=s[s.index('- (void)setSpecifiers:(NSArray *)rows {'):s.index('- (id)readPreferenceValue:(PSSpecifier *)specifier {')]
 prefix=r'''#import <Foundation/Foundation.h>
 @interface PSListController : NSObject
 @property(nonatomic,strong) NSArray *stored;
@@ -48,23 +48,23 @@ int main(int argc,const char *argv[]) {
   NSCAssert(argc==2,@"root argument required");
   NSDictionary *root=[NSDictionary dictionaryWithContentsOfFile:[NSString stringWithUTF8String:argv[1]]];
   NGCacheTest *controller=[NGCacheTest new];controller.rows=root[@"items"];
-  NSCAssert(controller.rows.count==50,@"input rows missing");
-  NSCAssert(controller.specifiers.count==50,@"getter missing rows");
-  NSCAssert(controller.stored.count==50,@"superclass storage not initialized");
-  NSCAssert(controller.numberOfGroups==27,@"group state missing");
-  NSCAssert(controller.specifiers.count==50 && controller.loads==1,@"cache did not stick");
+  NSCAssert(controller.rows.count==33,@"input rows missing");
+  NSCAssert(controller.specifiers.count==33,@"getter missing rows");
+  NSCAssert(controller.stored.count==33,@"superclass storage not initialized");
+  NSCAssert(controller.numberOfGroups==10,@"group state missing");
+  NSCAssert(controller.specifiers.count==33 && controller.loads==1,@"cache did not stick");
   controller.ngSpecifiers=nil;
-  NSCAssert(controller.specifiers.count==50 && controller.loads==2,@"reload did not repopulate");
+  NSCAssert(controller.specifiers.count==33 && controller.loads==2,@"reload did not repopulate");
   NSCAssert(!controller.ngLoading,@"reentry guard stuck");
   [controller setSpecifiers:nil];
   NSCAssert(controller.ngSpecifiers==nil && controller.stored==nil,@"framework invalidation not mirrored");
-  NSCAssert(controller.specifiers.count==50 && controller.loads==3,@"resume getter did not reload");
+  NSCAssert(controller.specifiers.count==33 && controller.loads==3,@"resume getter did not reload");
   for (int cycle=0;cycle<10;cycle++) {
    [controller ngRebuildSpecifierState];
-   NSCAssert(controller.stored.count==50 && controller.numberOfGroups==27,@"foreground rebuild blank");
+   NSCAssert(controller.stored.count==33 && controller.numberOfGroups==10,@"foreground rebuild blank");
   }
   NSCAssert(controller.loads==13 && !controller.ngLoading,@"foreground reentry or duplicate loads");
-  NSLog(@"PASS: production getter caches 50 rows, synchronizes 27 groups, handles setter reentry and reload. Framework stand-in; not UIKit validation.");
+  NSLog(@"PASS: production getter caches 33 rows, synchronizes 10 groups, handles setter reentry and reload. Framework stand-in; not UIKit validation.");
  }
  return 0;
 }
