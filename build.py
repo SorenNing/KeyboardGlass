@@ -38,7 +38,7 @@ def verify_macho(path,arch):
  return data
 receipts=[]
 for scheme,arch,prefix in [('rootless','arm64','var/jb/'),('roothide','arm64e','')]:
- if arch!='arm64e':continue  # This release is authorized for RootHide only.
+ if arch!='arm64':continue  # This build is authorized for ordinary rootless arm64 only.
  B=O/scheme;B.mkdir(exist_ok=True)
  engine=B/'NingKeyboardGlass.dylib';prefs=B/'KeyboardGlassPrefs'
  flags=['xcrun','--sdk','iphoneos','clang','-target',arch+'-apple-ios'+MIN_IOS,'-isysroot',sdk,'-fobjc-arc','-fblocks','-O2','-Wall','-Wextra','-Werror','-Wunguarded-availability']
